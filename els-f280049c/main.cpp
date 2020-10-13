@@ -27,8 +27,6 @@
 #include "F28x_Project.h"
 #include "Configuration.h"
 #include "SanityCheck.h"
-#include "ControlPanel.h"
-#include "EEPROM.h"
 #include "StepperDrive.h"
 #include "Encoder.h"
 
@@ -55,15 +53,6 @@ Debug debug;
 // Feed table factory
 FeedTableFactory feedTableFactory;
 
-// Common SPI Bus driver
-SPIBus spiBus;
-
-// Control Panel driver
-ControlPanel controlPanel(&spiBus);
-
-// EEPROM driver
-EEPROM eeprom(&spiBus);
-
 // Encoder driver
 Encoder encoder;
 
@@ -74,7 +63,7 @@ StepperDrive stepperDrive;
 Core core(&encoder, &stepperDrive);
 
 // User interface
-UserInterface userInterface(&controlPanel, &core, &feedTableFactory);
+UserInterface userInterface(NULL, &core, &feedTableFactory);
 
 void main(void)
 {
@@ -124,9 +113,6 @@ void main(void)
 
     // Initialize peripherals and pins
     debug.initHardware();
-    spiBus.initHardware();
-    controlPanel.initHardware();
-    eeprom.initHardware();
     stepperDrive.initHardware();
     encoder.initHardware();
 

@@ -28,33 +28,6 @@
 // KVV
 #include "nextion.h"
 
-const MESSAGE STARTUP_MESSAGE_2 =
-{
-  .message = { LETTER_E, LETTER_L, LETTER_S, DASH, ONE | POINT, THREE | POINT, ZERO, ONE },
-  .displayTime = UI_REFRESH_RATE_HZ * 1.5
-};
-
-const MESSAGE STARTUP_MESSAGE_1 =
-{
- .message = { LETTER_C, LETTER_L, LETTER_O, LETTER_U, LETTER_G, LETTER_H, FOUR, TWO },
- .displayTime = UI_REFRESH_RATE_HZ * 1.5,
- .next = &STARTUP_MESSAGE_2
-};
-
-const MESSAGE SETTINGS_MESSAGE_2 =
-{
- .message = { LETTER_S, LETTER_E, LETTER_T, LETTER_T, LETTER_I, LETTER_N, LETTER_G, LETTER_S },
- .displayTime = UI_REFRESH_RATE_HZ * .5
-};
-
-const MESSAGE SETTINGS_MESSAGE_1 =
-{
- .message = { BLANK, BLANK, BLANK, LETTER_N, LETTER_O, BLANK, BLANK, BLANK },
- .displayTime = UI_REFRESH_RATE_HZ * .5,
- .next = &SETTINGS_MESSAGE_2
-};
-
-const Uint16 VALUE_BLANK[4] = { BLANK, BLANK, BLANK, BLANK };
 
 UserInterface :: UserInterface(ControlPanel *controlPanel, Core *core, FeedTableFactory *feedTableFactory)
 {
@@ -73,8 +46,6 @@ UserInterface :: UserInterface(ControlPanel *controlPanel, Core *core, FeedTable
     // initialize the core so we start up correctly
     core->setReverse(this->reverse);
     core->setFeed(loadFeedTable());
-
-    setMessage(&STARTUP_MESSAGE_1);
 }
 
 const FEED_THREAD *UserInterface::loadFeedTable()
@@ -143,10 +114,9 @@ void UserInterface :: loop( void )
         newFeed = loadFeedTable();
     }
 
-    // read keypresses from the control panel
-    keys = controlPanel->getKeys();
-
     // KVV
+    KEY_REG keys;
+    keys.all = 0;
     {
         bool at_stop;
         bool enabled = core->isEnabled();
@@ -190,7 +160,6 @@ void UserInterface :: loop( void )
             }
             if( keys.bit.SET )
             {
-                setMessage(&SETTINGS_MESSAGE_1);
             }
         }
     }
@@ -221,8 +190,6 @@ void UserInterface :: loop( void )
     if( newFeed != NULL ) {
         // update the control panel
         LED_REG leds = this->calculateLEDs();
-        controlPanel->setLEDs(leds);
-        controlPanel->setValue(newFeed->display);
 	
         // KVV
         // Must pass leds as newFeed->leds is out of date, and may not have foward/reverse set.
@@ -232,16 +199,9 @@ void UserInterface :: loop( void )
         core->setFeed(newFeed);
         core->setReverse(this->reverse);
     }
-    if( ! core->isPowerOn() )
-    {
-        controlPanel->setValue(VALUE_BLANK);
-    }
 
     // update the RPM display
     controlPanel->setRPM(currentRpm);
     // KVV
     nextion_rpm(currentRpm);
-
-    // write data out to the display
-    controlPanel->refresh();
 }
