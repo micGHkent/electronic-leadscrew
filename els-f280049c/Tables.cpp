@@ -214,7 +214,7 @@ FeedTable::FeedTable(const FEED_THREAD *table, Uint16 numRows, Uint16 defaultSel
 {
     this->table = table;
     this->numRows = numRows;
-    this->selectedRow = defaultSelection;
+    selectedRow = defaultSelection;
 }
 
 const FEED_THREAD *FeedTable :: current()
@@ -224,20 +224,20 @@ const FEED_THREAD *FeedTable :: current()
 
 const FEED_THREAD *FeedTable :: next()
 {
-    if( this->selectedRow < this->numRows - 1 )
+    if( selectedRow < numRows - 1 )
     {
-        this->selectedRow++;
+        selectedRow++;
     }
-    return this->current();
+    return current();
 }
 
 const FEED_THREAD *FeedTable :: previous()
 {
-    if( this->selectedRow > 0 )
+    if( selectedRow > 0 )
     {
-        this->selectedRow--;
+        selectedRow--;
     }
-    return this->current();
+    return current();
 }
 
 FeedTableFactory::FeedTableFactory():
@@ -254,23 +254,22 @@ FeedTable *FeedTableFactory::getFeedTable(bool metric, bool thread)
     {
         if( thread )
         {
-            return &this->metricThreads;
+            return &metricThreads;
         }
         else
         {
-            return &this->metricFeeds;
+            return &metricFeeds;
         }
     }
     else
     {
         if( thread )
         {
-            return &this->inchThreads;
+            return &inchThreads;
         }
         else
         {
-            return &this->inchFeeds;
+            return &inchFeeds;
         }
     }
-
 }
