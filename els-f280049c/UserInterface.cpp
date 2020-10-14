@@ -29,9 +29,9 @@
 #include "nextion.h"
 
 
-UserInterface :: UserInterface(ControlPanel *controlPanel, Core *core, FeedTableFactory *feedTableFactory)
+UserInterface :: UserInterface(void *controlPanel, Core *core, FeedTableFactory *feedTableFactory)
 {
-    this->controlPanel = controlPanel;
+//    this->controlPanel = controlPanel;
     this->core = core;
     this->feedTableFactory = feedTableFactory;
 
@@ -83,20 +83,20 @@ void UserInterface :: setMessage(const MESSAGE *message)
 
 void UserInterface :: overrideMessage( void )
 {
-    if( this->message != NULL )
-    {
-        if( this->messageTime > 0 ) {
-            this->messageTime--;
-            controlPanel->setMessage(this->message->message);
-        }
-        else {
-            this->message = this->message->next;
-            if( this->message == NULL )
-                controlPanel->setMessage(NULL);
-            else
-                this->messageTime = this->message->displayTime;
-        }
-    }
+//    if( this->message != NULL )
+//    {
+//        if( this->messageTime > 0 ) {
+//            this->messageTime--;
+//            controlPanel->setMessage(this->message->message);
+//        }
+//        else {
+//            this->message = this->message->next;
+//            if( this->message == NULL )
+//                controlPanel->setMessage(NULL);
+//            else
+//                this->messageTime = this->message->displayTime;
+//        }
+//    }
 }
 
 void UserInterface :: loop( void )
@@ -200,8 +200,6 @@ void UserInterface :: loop( void )
         core->setReverse(this->reverse);
     }
 
-    // update the RPM display
-    controlPanel->setRPM(currentRpm);
     // KVV
     nextion_rpm(currentRpm);
 }

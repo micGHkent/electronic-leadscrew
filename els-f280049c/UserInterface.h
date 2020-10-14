@@ -41,7 +41,7 @@ typedef struct MESSAGE
 class UserInterface
 {
 private:
-    ControlPanel *controlPanel;
+//    ControlPanel *controlPanel;
     Core *core;
     FeedTableFactory *feedTableFactory;
 
@@ -62,7 +62,7 @@ private:
     void overrideMessage( void );
 
 public:
-    UserInterface(ControlPanel *controlPanel, Core *core, FeedTableFactory *feedTableFactory);
+    UserInterface(void *controlPanel, Core *core, FeedTableFactory *feedTableFactory);
 
     void loop( void );
 };

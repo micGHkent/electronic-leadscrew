@@ -28,7 +28,6 @@
 #define __CONTROL_PANEL_H
 
 #include "F28x_Project.h"
-#include "SPIBus.h"
 
 
 #define ZERO    0b1111110000000000 // 0
@@ -117,98 +116,6 @@ typedef union KEY_REG
     Uint16 all;
     struct KEY_BITS bit;
 } KEY_REG;
-
-
-class ControlPanel
-{
-private:
-    // Common SPI Bus
-    SPIBus *spiBus;
-
-    // Current RPM value; 4 decimal digits
-    Uint16 rpm;
-
-    // Current displayed setting value, 4 digits
-    const Uint16 *value;
-
-    // Current LED states
-    LED_REG leds;
-
-    // current key states
-    KEY_REG keys;
-
-    // number of times current key state has been seen
-    KEY_REG stableKeys;
-    Uint16 stableCount;
-
-    // current override message, or NULL if none
-    const Uint16 *message;
-
-    // brightness, levels 1-8, 0=off
-    Uint16 brightness;
-
-    // Derived state, calculated internally
-    Uint16 sevenSegmentData[8];
-
-    // dummy register, for SPI
-    Uint16 dummy;
-
-    void decomposeRPM(void);
-    void decomposeValue(void);
-    KEY_REG readKeys(void);
-    Uint16 lcd_char(Uint16 x);
-    void sendByte(Uint16 data);
-    Uint16 receiveByte(void);
-    void sendData(void);
-    Uint16 reverse_byte(Uint16 x);
-    void initSpi();
-    void configureSpiBus(void);
-    bool isValidKeyState(KEY_REG);
-    bool isStable(KEY_REG);
-
-public:
-    ControlPanel(SPIBus *spiBus);
-
-    // initialize the hardware for operation
-    void initHardware(void);
-
-    // poll the keys and return a mask
-    KEY_REG getKeys(void);
-
-    // set the RPM value to display
-    void setRPM(Uint16 rpm);
-
-    // set the value to display
-    void setValue(const Uint16 *value);
-
-    // set the LED states
-    void setLEDs(LED_REG leds);
-
-    // set a message that overrides the display, 8 characters required
-    void setMessage(const Uint16 *message);
-
-    // set a brightness value, 0 (off) to 8 (max)
-    void setBrightness(Uint16 brightness);
-
-    // refresh the hardware display
-    void refresh(void);
-};
-
-
-inline void ControlPanel :: setRPM(Uint16 rpm)
-{
-    this->rpm = rpm;
-}
-
-inline void ControlPanel :: setValue(const Uint16 *value)
-{
-    this->value = value;
-}
-
-inline void ControlPanel :: setLEDs(LED_REG leds)
-{
-    this->leds = leds;
-}
 
 
 #endif // __CONTROL_PANEL_H
