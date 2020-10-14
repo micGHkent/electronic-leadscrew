@@ -59,18 +59,18 @@ LED_REG UserInterface::calculateLEDs()
     // get the LEDs for this feed
     LED_REG leds = feedTable->current()->leds;
 
-    if( core->isPowerOn() )
-    {
+//    if( core->isPowerOn() )
+//    {
         // and add a few of our own
         leds.bit.POWER = 1;
         leds.bit.REVERSE = reverse;
         leds.bit.FORWARD = !reverse;
-    }
-    else
-    {
-        // power is off
-        leds.all = 0;
-    }
+//    }
+//    else
+//    {
+//        // power is off
+//        leds.all = 0;
+//    }
 
     return leds;
 }
@@ -120,26 +120,23 @@ void UserInterface :: loop()
         bool at_stop;
         bool enabled = core->isEnabled();
         bool nextion_init = false;
-        KEY_REG nkeys = nextion_loop(core->isAlarm(), enabled, at_stop, nextion_init);
+        keys = nextion_loop(core->isAlarm(), enabled, at_stop, nextion_init);
         core->setEnabled(enabled);
-        if (nkeys.all) {
-            keys = nkeys;
-        }
         if( nextion_init ) {
             newFeed = loadFeedTable();
         }
     }
 
-    // respond to keypresses
-    if( currentRpm == 0 )
-    {
-        // these keys should only be sensitive when the machine is stopped
-        if( keys.bit.POWER ) {
-            core->setPowerOn(!core->isPowerOn());
-        }
-
-        // these should only work when the power is on
-        if( core->isPowerOn() ) {
+//    // respond to keypresses
+//    if( currentRpm == 0 )
+//    {
+//        // these keys should only be sensitive when the machine is stopped
+//        if( keys.bit.POWER ) {
+//            core->setPowerOn(!core->isPowerOn());
+//        }
+//
+//        // these should only work when the power is on
+//        if( core->isPowerOn() ) {
             if( keys.bit.IN_MM )
             {
                 metric = ! metric;
@@ -157,19 +154,19 @@ void UserInterface :: loop()
                 // feed table hasn't changed, but we need to trigger an update
                 newFeed = loadFeedTable();
             }
-            if( keys.bit.SET )
-            {
-            }
-        }
-    }
-
-#ifdef IGNORE_ALL_KEYS_WHEN_RUNNING
-    if( currentRpm == 0 )
-        {
-#endif // IGNORE_ALL_KEYS_WHEN_RUNNING
-
-        // these should only work when the power is on
-        if( core->isPowerOn() ) {
+//            if( keys.bit.SET )
+//            {
+//            }
+//        }
+//    }
+//
+//#ifdef IGNORE_ALL_KEYS_WHEN_RUNNING
+//    if( currentRpm == 0 )
+//        {
+//#endif // IGNORE_ALL_KEYS_WHEN_RUNNING
+//
+//        // these should only work when the power is on
+//        if( core->isPowerOn() ) {
             // these keys can be operated when the machine is running
             if( keys.bit.UP )
             {
@@ -179,11 +176,11 @@ void UserInterface :: loop()
             {
                 newFeed = feedTable->previous();
             }
-        }
-
-#ifdef IGNORE_ALL_KEYS_WHEN_RUNNING
-    }
-#endif // IGNORE_ALL_KEYS_WHEN_RUNNING
+//        }
+//
+//#ifdef IGNORE_ALL_KEYS_WHEN_RUNNING
+//    }
+//#endif // IGNORE_ALL_KEYS_WHEN_RUNNING
 
     // if we have changed the feed
     if( newFeed != NULL ) {

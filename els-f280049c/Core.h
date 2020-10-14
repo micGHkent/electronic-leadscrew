@@ -49,7 +49,7 @@ private:
 
     int32 feedRatio(Uint32 count);
 
-    bool powerOn;
+//    bool powerOn;
 
     // KVV
     bool enabled;
@@ -63,8 +63,8 @@ public:
     Uint16 getRPM();
     bool isAlarm();
 
-    bool isPowerOn();
-    void setPowerOn(bool);
+//    bool isPowerOn();
+//    void setPowerOn(bool);
 
     void ISR();
 
@@ -102,14 +102,14 @@ inline bool Core :: isAlarm()
     return this->stepperDrive->isAlarm();
 }
 
-inline bool Core :: isPowerOn()
-{
-    return this->powerOn;
-}
+//inline bool Core :: isPowerOn()
+//{
+//    return this->powerOn;
+//}
 
 inline int32 Core :: feedRatio(Uint32 count)
 {
-    return ((float)count) * this->feed * feedDirection;
+    return count * feed * feedDirection;
 }
 
 inline void Core :: ISR()
