@@ -108,17 +108,17 @@ public:
 
 inline void StepperDrive :: setDesiredPosition(int32 steps)
 {
-    this->desiredPosition = steps;
+    desiredPosition = steps;
 }
 
 inline void StepperDrive :: incrementCurrentPosition(int32 increment)
 {
-    this->currentPosition += increment;
+    currentPosition += increment;
 }
 
 inline void StepperDrive :: setCurrentPosition(int32 position)
 {
-    this->currentPosition = position;
+    currentPosition = position;
 }
 
 inline void StepperDrive :: setEnabled(bool enabled)
@@ -144,44 +144,44 @@ inline bool StepperDrive :: isAlarm()
 
 inline void StepperDrive :: ISR()
 {
-    switch( this->state ) {
+    switch( state ) {
 
     case 0:
         // Step = 0; Dir = 0
-        if( this->desiredPosition < this->currentPosition ) {
+        if( desiredPosition < currentPosition ) {
             GPIO_SET_STEP;
-            this->state = 2;
+            state = 2;
         }
-        else if( this->desiredPosition > this->currentPosition ) {
+        else if( desiredPosition > currentPosition ) {
             GPIO_SET_DIRECTION;
-            this->state = 1;
+            state = 1;
         }
         break;
 
     case 1:
         // Step = 0; Dir = 1
-        if( this->desiredPosition > this->currentPosition ) {
+        if( desiredPosition > currentPosition ) {
             GPIO_SET_STEP;
-            this->state = 3;
+            state = 3;
         }
-        else if( this->desiredPosition < this->currentPosition ) {
+        else if( desiredPosition < currentPosition ) {
             GPIO_CLEAR_DIRECTION;
-            this->state = 0;
+            state = 0;
         }
         break;
 
     case 2:
         // Step = 1; Dir = 0
         GPIO_CLEAR_STEP;
-        this->currentPosition--;
-        this->state = 0;
+        currentPosition--;
+        state = 0;
         break;
 
     case 3:
         // Step = 1; Dir = 1
         GPIO_CLEAR_STEP;
-        this->currentPosition++;
-        this->state = 1;
+        currentPosition++;
+        state = 1;
         break;
     }
 }
