@@ -252,24 +252,10 @@ FeedTable *FeedTableFactory::getFeedTable(bool metric, bool thread)
 {
     if( metric )
     {
-        if( thread )
-        {
-            return &metricThreads;
-        }
-        else
-        {
-            return &metricFeeds;
-        }
+        return thread ? &metricThreads : &metricFeeds;
     }
     else
     {
-        if( thread )
-        {
-            return &inchThreads;
-        }
-        else
-        {
-            return &inchFeeds;
-        }
+        return thread ? &inchThreads : &inchFeeds;
     }
 }
