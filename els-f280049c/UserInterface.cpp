@@ -191,7 +191,7 @@ void UserInterface :: loop()
         LED_REG leds = calculateLEDs();
 	
         // KVV
-        // Must pass leds as newFeed->leds is out of date, and may not have foward/reverse set.
+        // Must pass leds as newFeed->leds is out of date, and may not have forward/reverse set.
         nextion_feed(newFeed, leds);
 
         // update the core
