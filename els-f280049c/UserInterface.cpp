@@ -35,23 +35,23 @@ UserInterface :: UserInterface(void *controlPanel, Core *core, FeedTableFactory 
     this->core = core;
     this->feedTableFactory = feedTableFactory;
 
-    this->metric = false; // start out with imperial
-    this->thread = false; // start out with feeds
-    this->reverse = false; // start out going forward
+    metric = false; // start out with imperial
+    thread = false; // start out with feeds
+    reverse = false; // start out going forward
 
-    this->feedTable = NULL;
+    feedTable = NULL;
 
-    this->keys.all = 0xff;
+    keys.all = 0xff;
 
     // initialize the core so we start up correctly
-    core->setReverse(this->reverse);
+    core->setReverse(reverse);
     core->setFeed(loadFeedTable());
 }
 
 const FEED_THREAD *UserInterface::loadFeedTable()
 {
-    this->feedTable = this->feedTableFactory->getFeedTable(this->metric, this->thread);
-    return this->feedTable->current();
+    feedTable = feedTableFactory->getFeedTable(metric, thread);
+    return feedTable->current();
 }
 
 LED_REG UserInterface::calculateLEDs()
@@ -59,12 +59,12 @@ LED_REG UserInterface::calculateLEDs()
     // get the LEDs for this feed
     LED_REG leds = feedTable->current()->leds;
 
-    if( this->core->isPowerOn() )
+    if( core->isPowerOn() )
     {
         // and add a few of our own
         leds.bit.POWER = 1;
-        leds.bit.REVERSE = this->reverse;
-        leds.bit.FORWARD = ! this->reverse;
+        leds.bit.REVERSE = reverse;
+        leds.bit.FORWARD = !reverse;
     }
     else
     {
@@ -75,14 +75,14 @@ LED_REG UserInterface::calculateLEDs()
     return leds;
 }
 
-void UserInterface :: setMessage(const MESSAGE *message)
-{
-    this->message = message;
-    this->messageTime = message->displayTime;
-}
-
-void UserInterface :: overrideMessage()
-{
+//void UserInterface :: setMessage(const MESSAGE *message)
+//{
+//    this->message = message;
+//    this->messageTime = message->displayTime;
+//}
+//
+//void UserInterface :: overrideMessage()
+//{
 //    if( this->message != NULL )
 //    {
 //        if( this->messageTime > 0 ) {
@@ -97,7 +97,7 @@ void UserInterface :: overrideMessage()
 //                this->messageTime = this->message->displayTime;
 //        }
 //    }
-}
+//}
 
 void UserInterface :: loop()
 {
@@ -107,7 +107,7 @@ void UserInterface :: loop()
     Uint16 currentRpm = core->getRPM();
 
     // display an override message, if there is one
-    overrideMessage();
+//    overrideMessage();
 
     // just in case, initialize the first time through
     if( feedTable == NULL ) {
@@ -115,8 +115,7 @@ void UserInterface :: loop()
     }
 
     // KVV
-    KEY_REG keys;
-    keys.all = 0;
+    KEY_REG keys = {.all = 0};
     {
         bool at_stop;
         bool enabled = core->isEnabled();
@@ -136,25 +135,25 @@ void UserInterface :: loop()
     {
         // these keys should only be sensitive when the machine is stopped
         if( keys.bit.POWER ) {
-            this->core->setPowerOn(!this->core->isPowerOn());
+            core->setPowerOn(!core->isPowerOn());
         }
 
         // these should only work when the power is on
-        if( this->core->isPowerOn() ) {
+        if( core->isPowerOn() ) {
             if( keys.bit.IN_MM )
             {
-                this->metric = ! this->metric;
+                metric = ! metric;
                 newFeed = loadFeedTable();
             }
             if( keys.bit.FEED_THREAD )
             {
-                this->thread = ! this->thread;
+                thread = ! thread;
                 newFeed = loadFeedTable();
             }
             if( keys.bit.FWD_REV )
             {
-                this->reverse = ! this->reverse;
-                core->setReverse(this->reverse);
+                reverse = ! reverse;
+                core->setReverse(reverse);
                 // feed table hasn't changed, but we need to trigger an update
                 newFeed = loadFeedTable();
             }
@@ -170,7 +169,7 @@ void UserInterface :: loop()
 #endif // IGNORE_ALL_KEYS_WHEN_RUNNING
 
         // these should only work when the power is on
-        if( this->core->isPowerOn() ) {
+        if( core->isPowerOn() ) {
             // these keys can be operated when the machine is running
             if( keys.bit.UP )
             {
@@ -189,7 +188,7 @@ void UserInterface :: loop()
     // if we have changed the feed
     if( newFeed != NULL ) {
         // update the control panel
-        LED_REG leds = this->calculateLEDs();
+        LED_REG leds = calculateLEDs();
 	
         // KVV
         // Must pass leds as newFeed->leds is out of date, and may not have foward/reverse set.
@@ -197,7 +196,7 @@ void UserInterface :: loop()
 
         // update the core
         core->setFeed(newFeed);
-        core->setReverse(this->reverse);
+        core->setReverse(reverse);
     }
 
     // KVV

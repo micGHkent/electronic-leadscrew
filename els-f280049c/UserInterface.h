@@ -58,8 +58,8 @@ private:
 
     const FEED_THREAD *loadFeedTable();
     LED_REG calculateLEDs();
-    void setMessage(const MESSAGE *message);
-    void overrideMessage();
+//    void setMessage(const MESSAGE *message);
+//    void overrideMessage();
 
 public:
     UserInterface(void *controlPanel, Core *core, FeedTableFactory *feedTableFactory);
