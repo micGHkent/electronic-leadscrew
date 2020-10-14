@@ -47,21 +47,21 @@ private:
     Uint16 rpm;
 
 public:
-    Encoder( void );
-    void initHardware( void );
+    Encoder();
+    void initHardware();
 
-    Uint16 getRPM( void );
-    Uint32 getPosition( void );
-    Uint32 getMaxCount( void );
+    Uint16 getRPM();
+    Uint32 getPosition();
+    Uint32 getMaxCount();
 };
 
 
-inline Uint32 Encoder :: getPosition(void)
+inline Uint32 Encoder :: getPosition()
 {
     return ENCODER_REGS.QPOSCNT;
 }
 
-inline Uint32 Encoder :: getMaxCount(void)
+inline Uint32 Encoder :: getMaxCount()
 {
     return _ENCODER_MAX_COUNT;
 }

@@ -28,13 +28,13 @@
 #include "Configuration.h"
 
 
-Encoder :: Encoder( void )
+Encoder :: Encoder()
 {
     this->previous = 0;
     this->rpm = 0;
 }
 
-void Encoder :: initHardware(void)
+void Encoder :: initHardware()
 {
     EALLOW;
 
@@ -90,7 +90,7 @@ void Encoder :: initHardware(void)
 
 }
 
-Uint16 Encoder :: getRPM(void)
+Uint16 Encoder :: getRPM()
 {
     if(ENCODER_REGS.QFLG.bit.UTO==1)       // If unit timeout (one 10Hz period)
     {
