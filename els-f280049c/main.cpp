@@ -32,7 +32,7 @@
 
 #include "Core.h"
 #include "UserInterface.h"
-#include "Debug.h"
+//#include "Debug.h"
 
 // KVV
 #include "nextion.h"
@@ -48,7 +48,7 @@ __interrupt void cpu_timer0_isr(void);
 //
 
 // Debug harness
-Debug debug;
+//Debug debug;
 
 // Feed table factory
 FeedTableFactory feedTableFactory;
@@ -112,7 +112,7 @@ void main(void)
     CpuTimer0Regs.TCR.all = 0x4001;
 
     // Initialize peripherals and pins
-    debug.initHardware();
+//    debug.initHardware();
     stepperDrive.initHardware();
     encoder.initHardware();
 
@@ -135,16 +135,16 @@ void main(void)
     // User interface loop
     for(;;) {
         // mark beginning of loop for debugging
-        debug.begin2();
+//        debug.begin2();
 
         // service the user interface
         userInterface.loop();
 
         // mark end of loop for debugging
-        debug.end2();
+//        debug.end2();
 
         // delay
-        DELAY_US(1000000 / UI_REFRESH_RATE_HZ);
+//        DELAY_US(1000000 / UI_REFRESH_RATE_HZ);
     }
 }
 
@@ -156,13 +156,13 @@ cpu_timer0_isr(void)
     CpuTimer0.InterruptCount++;
 
     // flag entrance to ISR for timing
-    debug.begin1();
+//    debug.begin1();
 
     // service the Core engine ISR, which in turn services the StepperDrive ISR
     core.ISR();
 
     // flag exit from ISR for timing
-    debug.end1();
+//    debug.end1();
 
     //
     // Acknowledge this interrupt to receive more interrupts from group 1
