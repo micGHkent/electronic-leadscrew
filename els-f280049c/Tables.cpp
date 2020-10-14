@@ -82,8 +82,7 @@ const FEED_THREAD inch_thread_table[] =
 
 #if defined(LEADSCREW_TPI)
 #define THOU_IN_FRACTION(thou) (float(thou * LEADSCREW_TPI) * step_enc_ratio_feed)
-#endif
-#if defined(LEADSCREW_MM)
+#elif defined(LEADSCREW_MM)
 #define THOU_IN_FRACTION(thou) (float(thou * 25.4) / float(LEADSCREW_MM) * step_enc_ratio_feed)
 #endif
 
