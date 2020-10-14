@@ -31,7 +31,7 @@ typedef unsigned char uchar_t;
 
 // Set to 1 to enable debugging of the Nextion messages over the
 // virtual COM port (57600, 8N1)
-#define NEXTION_DEBUG 0
+#define NEXTION_DEBUG 1
 
 #if NEXTION_DEBUG
 #include <ctype.h>
@@ -535,8 +535,7 @@ static void scia_init()
     SciaRegs.SCICTL2.bit.RXBKINTENA = 1;
 
     //
-    // 57600 baud @LSPCLK = 12.5MHz (100 MHz SYSCLK)
-    // (1152kBaud didn't work with LPSCLK = 12.5MHz)
+    // 57600 baud @LSPCLK = 25MHz (100 MHz SYSCLK)
     //
     SciaRegs.SCIHBAUD.all = 0x00;
     SciaRegs.SCILBAUD.all = 0x1B;
@@ -579,16 +578,16 @@ static void scib_init()
     // Round to
 #if 0
     //
-    // 9600 baud @LSPCLK = 12.5MHz (100 MHz SYSCLK)
+    // 9600 baud @LSPCLK = 25MHz (100 MHz SYSCLK)
     //
-    ScibRegs.SCIHBAUD.all = 0x00;
-    ScibRegs.SCILBAUD.all = 0xA3;
+    ScibRegs.SCIHBAUD.all = 0x01;
+    ScibRegs.SCILBAUD.all = 0x46;
 #else
     //
-    // 38400 baud @LSPCLK = 12.5MHz (100 MHz SYSCLK)
+    // 38400 baud @LSPCLK = 25MHz (100 MHz SYSCLK)
     //
     ScibRegs.SCIHBAUD.all = 0x00;
-    ScibRegs.SCILBAUD.all = 0x29;
+    ScibRegs.SCILBAUD.all = 0x51;
 #endif
 
     //
