@@ -93,7 +93,7 @@ private:
 
 public:
     StepperDrive();
-    void initHardware(void);
+    void initHardware();
 
     void setDesiredPosition(int32 steps);
     void incrementCurrentPosition(int32 increment);
@@ -103,7 +103,7 @@ public:
 
     bool isAlarm();
 
-    void ISR(void);
+    void ISR();
 };
 
 inline void StepperDrive :: setDesiredPosition(int32 steps)
@@ -142,7 +142,7 @@ inline bool StepperDrive :: isAlarm()
 }
 
 
-inline void StepperDrive :: ISR(void)
+inline void StepperDrive :: ISR()
 {
     switch( this->state ) {
 

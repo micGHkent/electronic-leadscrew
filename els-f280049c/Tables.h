@@ -53,9 +53,9 @@ private:
 public:
     FeedTable(const FEED_THREAD *table, Uint16 numRows, Uint16 defaultSelection);
 
-    const FEED_THREAD *current(void);
-    const FEED_THREAD *next(void);
-    const FEED_THREAD *previous(void);
+    const FEED_THREAD *current();
+    const FEED_THREAD *next();
+    const FEED_THREAD *previous();
 };
 
 
@@ -68,7 +68,7 @@ private:
     FeedTable metricFeeds;
 
 public:
-    FeedTableFactory(void);
+    FeedTableFactory();
 
     FeedTable *getFeedTable(bool metric, bool thread);
 };

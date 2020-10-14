@@ -59,12 +59,12 @@ private:
     const FEED_THREAD *loadFeedTable();
     LED_REG calculateLEDs();
     void setMessage(const MESSAGE *message);
-    void overrideMessage( void );
+    void overrideMessage();
 
 public:
     UserInterface(void *controlPanel, Core *core, FeedTableFactory *feedTableFactory);
 
-    void loop( void );
+    void loop();
 };
 
 #endif // __USERINTERFACE_H

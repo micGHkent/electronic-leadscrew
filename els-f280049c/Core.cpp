@@ -65,9 +65,3 @@ void Core :: setPowerOn(bool powerOn)
     this->powerOn = powerOn;
     this->stepperDrive->setEnabled(powerOn);
 }
-
-
-
-
-
-

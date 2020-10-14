@@ -81,7 +81,7 @@ void UserInterface :: setMessage(const MESSAGE *message)
     this->messageTime = message->displayTime;
 }
 
-void UserInterface :: overrideMessage( void )
+void UserInterface :: overrideMessage()
 {
 //    if( this->message != NULL )
 //    {
@@ -99,7 +99,7 @@ void UserInterface :: overrideMessage( void )
 //    }
 }
 
-void UserInterface :: loop( void )
+void UserInterface :: loop()
 {
     const FEED_THREAD *newFeed = NULL;
 

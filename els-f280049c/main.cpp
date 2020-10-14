@@ -38,7 +38,7 @@
 #include "nextion.h"
 
 
-__interrupt void cpu_timer0_isr(void);
+__interrupt void cpu_timer0_isr();
 
 
 //
@@ -150,8 +150,7 @@ void main(void)
 
 
 // CPU Timer 0 ISR
-__interrupt void
-cpu_timer0_isr(void)
+__interrupt void cpu_timer0_isr()
 {
     CpuTimer0.InterruptCount++;
 
@@ -169,5 +168,3 @@ cpu_timer0_isr(void)
     //
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
-
-

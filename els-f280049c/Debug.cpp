@@ -27,13 +27,13 @@
 #include "Debug.h"
 
 
-Debug :: Debug( void )
+Debug :: Debug()
 {
 
 }
 
 
-void Debug :: initHardware( void )
+void Debug :: initHardware()
 {
     // set up GPIO pins as output for debugging
     EALLOW;

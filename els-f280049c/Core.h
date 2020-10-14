@@ -60,13 +60,13 @@ public:
 
     void setFeed(const FEED_THREAD *feed);
     void setReverse(bool reverse);
-    Uint16 getRPM(void);
+    Uint16 getRPM();
     bool isAlarm();
 
     bool isPowerOn();
     void setPowerOn(bool);
 
-    void ISR( void );
+    void ISR();
 
     // KVV
     void setEnabled(bool v);
@@ -92,7 +92,7 @@ inline void Core :: setFeed(const FEED_THREAD *feed)
     this->feed = (float)feed->numerator / feed->denominator;
 }
 
-inline Uint16 Core :: getRPM(void)
+inline Uint16 Core :: getRPM()
 {
     return encoder->getRPM();
 }
@@ -112,7 +112,7 @@ inline int32 Core :: feedRatio(Uint32 count)
     return ((float)count) * this->feed * feedDirection;
 }
 
-inline void Core :: ISR( void )
+inline void Core :: ISR()
 {
     if( this->enabled && this->feed != NULL ) {
         // read the encoder

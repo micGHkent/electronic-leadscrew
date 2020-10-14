@@ -32,35 +32,35 @@
 class Debug
 {
 public:
-    Debug(void);
-    void initHardware(void);
+    Debug();
+    void initHardware();
 
     // analyzer pin 1
-    void begin1( void );
-    void end1( void );
+    void begin1();
+    void end1();
 
     // analyzer pin 2
-    void begin2( void );
-    void end2( void );
+    void begin2();
+    void end2();
 };
 
 
-inline void Debug :: begin1( void )
+inline void Debug :: begin1()
 {
     GpioDataRegs.GPASET.bit.GPIO2 = 1;
 }
 
-inline void Debug :: end1( void )
+inline void Debug :: end1()
 {
     GpioDataRegs.GPACLEAR.bit.GPIO2 = 1;
 }
 
-inline void Debug :: begin2( void )
+inline void Debug :: begin2()
 {
     GpioDataRegs.GPASET.bit.GPIO3 = 1;
 }
 
-inline void Debug :: end2( void )
+inline void Debug :: end2()
 {
     GpioDataRegs.GPACLEAR.bit.GPIO3 = 1;
 }
