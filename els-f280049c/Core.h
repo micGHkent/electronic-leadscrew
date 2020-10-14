@@ -89,7 +89,7 @@ inline bool Core :: isEnabled() const
 
 inline void Core :: setFeed(const FEED_THREAD *feed)
 {
-    this->feed = (float)feed->numerator / feed->denominator;
+    this->feed = feed->feed;
 }
 
 inline Uint16 Core :: getRPM()
