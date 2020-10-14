@@ -106,19 +106,6 @@
 
 
 //================================================================================
-//                               CALCULATIONS
-//
-// Define how calculations should be performed.  Most users will not need to
-// touch these settings.
-//================================================================================
-
-// Use floating-point math for gear ratios
-#define USE_FLOATING_POINT
-
-
-
-
-//================================================================================
 //                                HARDWARE
 //
 // Define which hardware you're using:

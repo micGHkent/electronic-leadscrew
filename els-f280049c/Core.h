@@ -39,13 +39,8 @@ private:
     Encoder *encoder;
     StepperDrive *stepperDrive;
 
-#ifdef USE_FLOATING_POINT
     float feed;
     float previousFeed;
-#else
-    const FEED_THREAD *feed;
-    const FEED_THREAD *previousFeed;
-#endif // USE_FLOATING_POINT
 
     int16 feedDirection;
     int16 previousFeedDirection;
@@ -94,11 +89,7 @@ inline bool Core :: isEnabled() const
 
 inline void Core :: setFeed(const FEED_THREAD *feed)
 {
-#ifdef USE_FLOATING_POINT
     this->feed = (float)feed->numerator / feed->denominator;
-#else
-    this->feed = feed;
-#endif // USE_FLOATING_POINT
 }
 
 inline Uint16 Core :: getRPM(void)
@@ -118,11 +109,7 @@ inline bool Core :: isPowerOn()
 
 inline int32 Core :: feedRatio(Uint32 count)
 {
-#ifdef USE_FLOATING_POINT
     return ((float)count) * this->feed * feedDirection;
-#else // USE_FLOATING_POINT
-    return ((long long)count) * feed->numerator / feed->denominator * feedDirection;
-#endif // USE_FLOATING_POINT
 }
 
 inline void Core :: ISR( void )
