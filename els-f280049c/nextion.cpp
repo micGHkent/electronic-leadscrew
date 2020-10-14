@@ -194,58 +194,8 @@ void nextion_wait()
 void nextion_feed(const FEED_THREAD *f, LED_REG leds)
 {
     {
-        uchar_t msg2[8 + 4 + 5] = { "t1.txt=\"" };
-        uchar_t *p = msg2 + 8;
-        for (int i = 0; i < 4; i++)
-        {
-            Uint16 a = f->display[i];
-            Uint16 pnt = a & POINT;
-            a &= ~POINT;
-            switch (a)
-            {
-            case BLANK:
-                *p++ = ' ';
-                break;
-            case ZERO:
-                *p++ = '0';
-                break;
-            case ONE:
-                *p++ = '1';
-                break;
-            case TWO:
-                *p++ = '2';
-                break;
-            case THREE:
-                *p++ = '3';
-                break;
-            case FOUR:
-                *p++ = '4';
-                break;
-            case FIVE:
-                *p++ = '5';
-                break;
-            case SIX:
-                *p++ = '6';
-                break;
-            case SEVEN:
-                *p++ = '7';
-                break;
-            case EIGHT:
-                *p++ = '8';
-                break;
-            case NINE:
-                *p++ = '9';
-                break;
-            default:
-                *p++ = '?';
-                break;
-            }
-            if (pnt)
-            {
-                *p++ = '.';
-            }
-        }
-        *p++ = '"';
+        uchar_t msg2[8 + 4 + 5];
+        uchar_t *p = msg2 + sprintf((char*)msg2, "t1.txt=\"%s\"", f->display);
         *p++ = '\xff';
         *p++ = '\xff';
         *p++ = '\xff';

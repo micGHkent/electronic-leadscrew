@@ -35,7 +35,7 @@
 
 typedef struct FEED_THREAD
 {
-    Uint16 display[4];
+    const char *display;
     union LED_REG leds;
     Uint64 numerator;
     Uint64 denominator;
