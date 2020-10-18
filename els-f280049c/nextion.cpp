@@ -177,7 +177,7 @@ void Nextion::wait()
     // power cycling only the Nextion. It may be better to test if the Nextion
     // is ready by checking its response to a query like which page is current.
 
-    // Timeout after 40 * 25us = 1s
+    // Timeout after 40 * 25ms = 1s
     for (int i = 0; i < 40; i++)
     {
         const int nmax = 6;
