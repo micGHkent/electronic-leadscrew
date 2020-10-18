@@ -29,40 +29,19 @@
 
 #include "ControlPanel.h"
 #include "Core.h"
-#include "Tables.h"
-
-typedef struct MESSAGE
-{
-    Uint16 message[8];
-    Uint16 displayTime;
-    const MESSAGE *next;
-} MESSAGE;
 
 class UserInterface
 {
 private:
-//    ControlPanel *controlPanel;
+    void *controlPanel;
     Core *core;
-    FeedTableFactory *feedTableFactory;
 
     bool metric;
     bool thread;
     bool reverse;
 
-    FeedTable *feedTable;
-
-    KEY_REG keys;
-
-    const MESSAGE *message;
-    Uint16 messageTime;
-
-    const FEED_THREAD *loadFeedTable();
-    LED_REG calculateLEDs();
-//    void setMessage(const MESSAGE *message);
-//    void overrideMessage();
-
 public:
-    UserInterface(void *controlPanel, Core *core, FeedTableFactory *feedTableFactory);
+    UserInterface(void *controlPanel, Core *core);
 
     void loop();
 };

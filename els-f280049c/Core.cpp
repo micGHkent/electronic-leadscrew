@@ -28,6 +28,49 @@
 #include "Core.h"
 
 
+static const float step_enc_ratio = float(STEPPER_RESOLUTION * STEPPER_MICROSTEPS) / float(ENCODER_RESOLUTION);
+static const float step_enc_ratio_feed = float(STEPPER_RESOLUTION_FEED * STEPPER_MICROSTEPS_FEED) / float(ENCODER_RESOLUTION);
+
+#if defined(LEADSCREW_TPI)
+#define TPI_FRACTION(tpi) (float(LEADSCREW_TPI) / float(tpi) * step_enc_ratio)
+#elif defined(LEADSCREW_MM)
+#define TPI_FRACTION(tpi) (25.4 / float(tpi * LEADSCREW_MM) * step_enc_ratio)
+#endif
+
+#if defined(LEADSCREW_TPI)
+#define THOU_IN_FRACTION(thou) (float(thou * LEADSCREW_TPI) * step_enc_ratio_feed)
+#elif defined(LEADSCREW_MM)
+#define THOU_IN_FRACTION(thou) (float(thou * 25.4) / float(LEADSCREW_MM) * step_enc_ratio_feed)
+#endif
+
+#if defined(LEADSCREW_TPI)
+#define MM_FRACTION(mm) (float(mm) / 25.4 * LEADSCREW_TPI * step_enc_ratio)
+#elif defined(LEADSCREW_MM)
+#define MM_FRACTION(mm) (float(mm) / float(LEADSCREW_MM) * step_enc_ratio)
+#endif
+
+#if defined(LEADSCREW_TPI)
+#define MM_FRACTION_FEED(mm) (float(mm) / 25.4 * LEADSCREW_TPI * step_enc_ratio_feed)
+#elif defined(LEADSCREW_MM)
+#define MM_FRACTION_FEED(mm) (float(mm) / float(LEADSCREW_MM) * step_enc_ratio_feed)
+#endif
+
+void Core :: setFeed(float v, bool metric, bool feed)
+{
+    if (!metric && !feed) {
+        v = TPI_FRACTION(v);
+    } else if (!metric && feed) {
+        v = THOU_IN_FRACTION(v);
+    } else if (metric && !feed) {
+        v = MM_FRACTION(v);
+    } else if (metric && feed) {
+        v = MM_FRACTION_FEED(v);
+    }
+    this->feed = v;
+}
+
+
+
 
 Core :: Core( Encoder *encoder, StepperDrive *stepperDrive )
 {
@@ -41,8 +84,6 @@ Core :: Core( Encoder *encoder, StepperDrive *stepperDrive )
     previousFeedDirection = 0;
     previousFeed = NULL;
 
-//    powerOn = true; // default to power on
-
     // KVV
     enabled = true;
     reenabled = true;
@@ -53,8 +94,3 @@ void Core :: setReverse(bool reverse)
     feedDirection = reverse ? -1 : 1;
 }
 
-//void Core :: setPowerOn(bool powerOn)
-//{
-//    this->powerOn = powerOn;
-//    this->stepperDrive->setEnabled(powerOn);
-//}

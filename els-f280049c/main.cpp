@@ -36,7 +36,7 @@
 
 // KVV
 #include "nextion.h"
-
+Nextion nextion;
 
 __interrupt void cpu_timer0_isr();
 
@@ -50,9 +50,6 @@ __interrupt void cpu_timer0_isr();
 // Debug harness
 //Debug debug;
 
-// Feed table factory
-FeedTableFactory feedTableFactory;
-
 // Encoder driver
 Encoder encoder;
 
@@ -63,7 +60,7 @@ StepperDrive stepperDrive;
 Core core(&encoder, &stepperDrive);
 
 // User interface
-UserInterface userInterface(NULL, &core, &feedTableFactory);
+UserInterface userInterface(&nextion, &core);
 
 void main(void)
 {
@@ -117,7 +114,7 @@ void main(void)
     encoder.initHardware();
 
     // KVV
-    nextion_init();
+    nextion.init();
 
     // Enable CPU INT1 which is connected to CPU-Timer 0
     IER |= M_INT1;
@@ -130,7 +127,7 @@ void main(void)
     ERTM;
 
     // KVV
-    nextion_wait();
+    nextion.wait();
 
     // User interface loop
     for(;;) {

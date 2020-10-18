@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <file.h>
 #include "driverlib.h"
@@ -48,7 +49,22 @@ static void transmitSCIBChar(uint16_t a);
 static void transmitSCIBMessage(const unsigned char *msg);
 static void initSCIBFIFO(void);
 
-static int nextion_read(uchar_t buf[], const int nmax)
+Nextion::Nextion() :
+    rpm_(0),
+    enabled_(false),
+    alarm_(false),
+    at_stop_(false),
+    feed_(.005),
+    mode_metric_(false),
+    mode_feed_(true),
+    reverse_(false)
+{
+    strcpy(feed_str_, ".005");
+    strcpy(feed_str_new_, ".005");
+    //    init();
+}
+
+int Nextion::read(uchar_t buf[], const int nmax)
 {
     int n = 0;
 
@@ -81,7 +97,7 @@ static int nextion_read(uchar_t buf[], const int nmax)
     return n;
 }
 
-static void nextion_send(const uchar_t *msg)
+void Nextion::send(const uchar_t *msg)
 {
     transmitSCIBMessage((const unsigned char*) msg);
 
@@ -110,7 +126,7 @@ static void nextion_send(const uchar_t *msg)
 #endif
 }
 
-void nextion_init()
+void Nextion::init()
 {
     // Configure the GPIO pin for the limit switch input
     // GPIO_setPinConfig(GPIO_25_GPIO25);
@@ -151,7 +167,7 @@ void nextion_init()
 }
 
 // Wait for the Nextion to become ready.
-void nextion_wait()
+void Nextion::wait()
 {
     // The easiest way to while for the Nextion to be ready with a fixed delay
     // to have a fixed delay.
@@ -164,7 +180,7 @@ void nextion_wait()
     // on start up, and
     //   0x88 0xff 0xff 0xff
     // when ready. Often both messages will be read in a single
-    // nextion_read(...) call
+    // read(...) call
     //
     // The Nextion is ready fast and I rarely saw the ready message unless
     // power cycling only the Nextion. It may be better to test if the Nextion
@@ -175,7 +191,7 @@ void nextion_wait()
     {
         const int nmax = 6;
         uchar_t msg[nmax];
-        int n = nextion_read(msg, nmax);
+        int n = read(msg, nmax);
         if (n > 3)
         {
             bool has_end = msg[n - 3] == 0xff && msg[n - 2] == 0xff
@@ -187,117 +203,87 @@ void nextion_wait()
         }
         DELAY_US(25000);
     }
+
+    set_feed(".005");
+    set_rpm(rpm_);
+
+    set_diagram();
+    set_units();
+    set_sign();
 }
 
-// Update the Nextion feed display using the same information used
-// to update the seven-segment display.
-void nextion_feed(const FEED_THREAD *f, LED_REG leds)
+void Nextion::set_feed(const char *f)
 {
+    float f2 = strtof(f, NULL);
+
     {
         uchar_t msg2[8 + 4 + 5];
-        uchar_t *p = msg2 + sprintf((char*)msg2, "t1.txt=\"%s\"", f->display);
+        uchar_t *p = msg2 + sprintf((char*)msg2, "t1.txt=\"%s\"", f);
         *p++ = '\xff';
         *p++ = '\xff';
         *p++ = '\xff';
         *p++ = '\0';
-        nextion_send(msg2);
+        send(msg2);
     }
 
-    {
-        const uchar_t *msgs[5] = { "b8.txt=\"mm Pitch\"\xff\xff\xff",
-                                   "b8.txt=\"mm / rev\"\xff\xff\xff",
-                                   "b8.txt=\"TPI\"\xff\xff\xff",
-                                   "b8.txt=\"inch / rev\"\xff\xff\xff",
-                                   "b8.txt=\"???\"\xff\xff\xff" };
-
-        int i = 4;
-        if (leds.bit.THREAD && leds.bit.TPI)
-        {
-            i = 2;
-        }
-        else if (leds.bit.FEED && leds.bit.INCH)
-        {
-            i = 3;
-        }
-        else if (leds.bit.THREAD && leds.bit.MM)
-        {
-            i = 0;
-        }
-        else if (leds.bit.FEED && leds.bit.MM)
-        {
-            i = 1;
-        }
-
-        nextion_send(msgs[i]);
-    }
-
-    {
-        const uchar_t *msgs[5] = { "b9.txt=\"Right Hand\"\xff\xff\xff",
-                                   "b9.txt=\"Left Hand\"\xff\xff\xff",
-                                   "b9.txt=\"Forward\"\xff\xff\xff",
-                                   "b9.txt=\"Reverse\"\xff\xff\xff",
-                                   "b9.txt=\"???\"\xff\xff\xff" };
-
-        int i = 4;
-        if (leds.bit.THREAD && leds.bit.FORWARD)
-        {
-            i = 0;
-        }
-        else if (leds.bit.THREAD && leds.bit.REVERSE)
-        {
-            i = 1;
-        }
-        else if (leds.bit.FEED && leds.bit.FORWARD)
-        {
-            i = 2;
-        }
-        else if (leds.bit.FEED && leds.bit.REVERSE)
-        {
-            i = 3;
-        }
-
-        nextion_send(msgs[i]);
-    }
+    feed_ = f2;
+#if NEXTION_DEBUG
+    printf("aa %d\r\n", int(feed_*10000));
+#endif
 }
 
-void nextion_rpm(Uint16 rpm)
+
+void Nextion::set_rpm(Uint16 rpm)
 {
     static bool do_once = true;
-    static Uint16 p_rpm = 0;
 
-    if (p_rpm != rpm || do_once)
+    if (rpm_ != rpm || do_once)
     {
         uchar_t msg2[32];
         sprintf((char*) msg2, "t0.txt=\"%u\"\xff\xff\xff", rpm);
-        nextion_send(msg2);
+        send(msg2);
 
-        p_rpm = rpm;
+        rpm_ = rpm;
         do_once = false;
+    }
+
+    if (false) {
+        int m = 0;
+        int M = 3000;
+        int h = 160;
+//        rpm=3000;
+        uchar_t nex_buffer[32];
+        int v = (int)(float(rpm - m) / float(M - m) * float(h));
+        if (v < 0) v = 0;
+        if (v > h) v = h;
+        sprintf((char*)nex_buffer, "add 28,0,%d\xff\xff\xff", v);
+        send(nex_buffer);
     }
 }
 
-KEY_REG nextion_loop(bool alarm, bool &enabled, bool &at_stop, bool &init)
+bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
 {
+    set_rpm(rpm);
+
+    bool updated = false;
+
     static bool do_once = true;
-    bool p_enabled = enabled;
+    updated = updated || do_once;
+
+    bool p_enabled = enabled_;
+
+    updated = updated || alarm_ != alarm;
+    alarm_ = alarm;
 
     // Check the limit switch and update the enabled state
-    at_stop = GPIO_ReadPin(25);
-    enabled = enabled && !at_stop;
+    at_stop_ = GPIO_ReadPin(25);
+    enabled_ = enabled_ && enabled && !at_stop_;
 
     // Receive message from Nextion display
     const int nmax = 12;
     uchar_t msg[nmax];
-    int n = nextion_read(msg, nmax);
+    int n = read(msg, nmax);
 
-    // Feed_mode must be initialized with the same that's initially shown on the seven-segment display.
-    // This is a kludge but correcting this might have involved more changes in the original code.
-    // Worse case is the two are initially out of sync, but will sync up once the mode is changed.
-    static int feed_mode = 3;
-
-    // Decode message from Nextion display and emulate a seven-segment key presses
-    KEY_REG key;
-    key.all = 0;
     if (n > 3)
     {
         bool has_end = msg[n - 3] == 0xff && msg[n - 2] == 0xff
@@ -312,81 +298,122 @@ KEY_REG nextion_loop(bool alarm, bool &enabled, bool &at_stop, bool &init)
             printf("Reinitialize\r\n");
 #endif
         }
-        else if (has_end && n == 7 && msg[0] == 0x65)
+        else if (has_end && n == 5 && msg[0] == 0x25)
         {
             // Touch Event
-            uchar_t page_num = msg[1];
-            uchar_t comp_id = msg[2];
-            uchar_t event = msg[3];
+            uchar_t k = msg[1];
 
-            if (page_num == 0 && event == 1)
+            const char max_n = 6;
+            static char f[max_n+1] = {'\0'};
+            int n = strlen(f);
+            bool feed_updated = false;
+            static bool in_edit = false;
+
+            if (0x30 <= k && k <= 0x39) // number, 0-9
             {
-                switch (comp_id)
-                {
-                case 9:
-                    key.bit.DOWN = 1;
-                    break;
-                case 10:
-                    key.bit.UP = 1;
-                    break;
-                case 14:
-                    // Consider the desired state of the LEDs and what keys must be pressed to move to desired state.
-                    // Desired state for each feed_mode:
-                    // 0:
-                    //  leds.bit.THREAD = 1;
-                    //  leds.bit.MM = 1;
-                    // 1:
-                    //  leds.bit.FEED = 1;
-                    //  leds.bit.MM = 1;
-                    // 2:
-                    //  leds.bit.THREAD = 1;
-                    //  leds.bit.TPI = 1;
-                    // 3:
-                    //  leds.bit.FEED = 1;
-                    //  leds.bit.INCH = 1;
-                    feed_mode = (feed_mode + 1) % 4;
-                    switch (feed_mode)
-                    {
-                    case 0:
-                        key.bit.FEED_THREAD = 1;
-                        key.bit.IN_MM = 1;
-                        break;
-                    case 1:
-                        key.bit.FEED_THREAD = 1;
-                        break;
-                    case 2:
-                        key.bit.FEED_THREAD = 1;
-                        key.bit.IN_MM = 1;
-                        break;
-                    case 3:
-                        key.bit.FEED_THREAD = 1;
-                        break;
-                    }
-                    break;
-                case 15:
-                    key.bit.FWD_REV = 1;
-                    break;
-                case 18:
-                    // Remain disabled if limit switch is tripped, else toggle enable.
-                    enabled = !at_stop && !enabled;
-                    break;
-                default:
-                    break;
+                if (n < max_n) {
+                    f[n++] = k;
+                    f[n] = '\0';
+                    feed_updated = true;
                 }
+                in_edit = true;
+            }
+            else if (k == 0x2e) // .
+            {
+                if (n < max_n) {
+                    bool has_dot = false;
+                    for(int i=0; i<n; i++) {
+                        if (f[i] == '.') {
+                            has_dot = true;
+                            break;
+                        }
+                    }
+                    if (!has_dot) {
+                        f[n++] = k;
+                        f[n] = '\0';
+                        feed_updated = true;
+                    }
+                }
+                in_edit = true;
+            }
+            else if (k == 0x08) // backspace
+            {
+                if (n > 0) {
+                    f[n-1] = '\0';
+                    feed_updated = true;
+                }
+                in_edit = true;
+            }
+            else if (k == 0x0d) // enter
+            {
+                f[0] = '\0';
+                feed_updated = false;
+                in_edit = false;
+            }
+            else if (k == 0x1a) // mode/dir change
+            {
+                updated = true;
+
+                if (!mode_feed_ && !reverse_) {
+                    mode_feed_ = true;
+                } else if (mode_feed_ && !reverse_) {
+                    mode_feed_ = false;
+                    reverse_ = true;
+                } else if (!mode_feed_ && reverse_) {
+                    mode_feed_ = true;
+                } else if (mode_feed_ && reverse_) {
+                    mode_feed_ = false;
+                    reverse_ = false;
+                }
+                set_diagram();
+                set_units();
+            }
+            else if (k == 0x1b) // units change
+            {
+                mode_metric_ = !mode_metric_;
+                updated = true;
+
+                set_units();
+            }
+            else if (k == 0x1c) // start/stop
+            {
+                enabled_ = !enabled_;
+            }
+            else if (k == 0x1d) // nothing
+            {
+                in_edit = false;
+            }
+            else if (k == 0x1e) // cancel
+            {
+                in_edit = false;
+            }
+
+            if (feed_updated) {
+                updated = true;
+                set_feed(f);
+            }
+
+            if (in_edit) {
+                send("t1.pco=13812\xff\xff\xff");
+            } else {
+                send("t1.pco=65535\xff\xff\xff");
             }
         }
     }
+
+    // Remain disabled if limit switch is tripped, else toggle enable.
+    //                    enabled_ = !at_stop_ && !enabled_;
 
     // Set credits message once
     if (do_once)
     {
         const uchar_t *msg = { "t2.txt=\"ELS 1.3.01\r\n"
-                               "James Clough - Clough42\r\n"
+                               "James Clough (Clough42)\r\n"
                                "\r\n"
-                               "Nextion display\r\n"
+                               "Touchscreen interface\r\n"
                                "Kent A. Vander Velden"
                                "\"\xff\xff\xff" };
-        nextion_send(msg);
+        send(msg);
     }
 
     // Update alarm indicator
@@ -398,24 +425,82 @@ KEY_REG nextion_loop(bool alarm, bool &enabled, bool &at_stop, bool &init)
         if (p_alarm != alarm || do_once)
         {
             // In this fast loop, update the display only if needed to avoid flicker.
-            nextion_send(msgs[alarm ? 1 : 0]);
+            if (alarm) {
+                send("vis 4,0\xff\xff\xff");
+                send("vis 25,1\xff\xff\xff");
+            } else {
+                send("vis 25,0\xff\xff\xff");
+            }
+            send(msgs[alarm ? 1 : 0]);
             p_alarm = alarm;
         }
     }
 
     // Update the enable/disable button
-    if (p_enabled != enabled || do_once)
+    if (p_enabled != enabled_ || do_once)
     {
-        const uchar_t *msgs[2] = { "b11.txt=\"Enable\"\xff\xff\xff",
-                                   "b11.txt=\"Disable\"\xff\xff\xff" };
-        nextion_send(msgs[enabled ? 1 : 0]);
+        set_sign();
     }
 
-    init = do_once;
+//    bool init = do_once;
     do_once = false;
 
-    return key;
+    return updated;
 }
+
+void Nextion::getFeed(float &v, bool &metric, bool &feed) const {
+    v = feed_;
+    metric = mode_metric_;
+    feed = mode_feed_;
+#if NEXTION_DEBUG
+    printf("bb %d\r\n", int(feed_*10000));
+#endif
+}
+
+bool Nextion::isAtStop() const {
+    return at_stop_;
+}
+
+bool Nextion::isEnabled() const {
+    return enabled_;
+}
+
+bool Nextion::isReverse() const {
+    return reverse_;
+}
+
+void Nextion::set_diagram() {
+    if (!mode_feed_ && !reverse_) {
+        send("p0.pic=5\xff\xff\xff");
+    } else if (mode_feed_ && !reverse_) {
+        send("p0.pic=4\xff\xff\xff");
+    } else if (!mode_feed_ && reverse_) {
+        send("p0.pic=3\xff\xff\xff");
+    } else if (mode_feed_ && reverse_) {
+        send("p0.pic=2\xff\xff\xff");
+    }
+}
+
+void Nextion::set_units() {
+    if (mode_metric_ && mode_feed_) {
+        send("p1.pic=8\xff\xff\xff"); // mm/rev
+    } else if (mode_metric_ && !mode_feed_) {
+        send("p1.pic=7\xff\xff\xff"); // mm
+    } else if (!mode_metric_ && mode_feed_) {
+        send("p1.pic=6\xff\xff\xff"); // in/rev
+    } else if (!mode_metric_ && !mode_feed_) {
+        send("p1.pic=9\xff\xff\xff"); // TPI
+    }
+}
+
+void Nextion::set_sign() {
+    if (enabled_) {
+        send("p2.pic=11\xff\xff\xff");
+    } else {
+        send("p2.pic=10\xff\xff\xff");
+    }
+}
+
 
 // ===========================================================================
 // The support function below are from or based on TI's C2000Ware examples.

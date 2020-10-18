@@ -8,13 +8,39 @@
 #ifndef NEXTION_H_
 #define NEXTION_H_
 
-#include "Tables.h"
 #include "ControlPanel.h"
 
-void nextion_init();
-void nextion_wait();
-void nextion_feed(const FEED_THREAD*, LED_REG leds);
-void nextion_rpm(Uint16 rpm);
-KEY_REG nextion_loop(bool alarm, bool &enabled, bool &at_stop, bool &init);
+class Nextion {
+public:
+    Nextion();
+
+    void init();
+    void wait();
+    bool update(Uint16 rpm, bool alarm, bool enabled);
+    bool isAtStop() const;
+    bool isEnabled() const;
+    bool isReverse() const;
+    void getFeed(float &v, bool &metric, bool &feed) const;
+
+protected:
+    Uint16 rpm_;
+    bool enabled_;
+    bool alarm_;
+    bool at_stop_;
+    float feed_;
+    char feed_str_[16];
+    char feed_str_new_[16];
+    bool mode_metric_;
+    bool mode_feed_;
+    bool reverse_;
+
+    int read(unsigned char buf[], const int nmax);
+    void send(const unsigned char *msg);
+    void set_rpm(Uint16 rpm);
+    void set_feed(const char *f);
+    void set_diagram();
+    void set_units();
+    void set_sign();
+};
 
 #endif /* NEXTION_H_ */
