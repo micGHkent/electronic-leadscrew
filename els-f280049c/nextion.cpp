@@ -45,13 +45,23 @@ Nextion::Nextion() :
     enabled_(false),
     alarm_(false),
     at_stop_(false),
-    feed_(.005),
     mode_metric_(false),
     mode_feed_(true),
     reverse_(false)
 {
-    strcpy(feed_str_, ".005");
-    strcpy(feed_str_new_, ".005");
+    feed_[0] = .005; // in/rev
+    feed_[1] = 8; // TPI
+    feed_[2] = .128; // mm/rev
+    feed_[3] = 1; // mm pitch
+    strcpy(feed_str_[0], ".005");
+    strcpy(feed_str_[1], "8");
+    strcpy(feed_str_[2], ".128");
+    strcpy(feed_str_[3], "1");
+    feed_str_new_[0][0] = '\0';
+    feed_str_new_[1][0] = '\0';
+    feed_str_new_[2][0] = '\0';
+    feed_str_new_[3][0] = '\0';
+    update_ind();
     //    init();
 }
 
@@ -185,8 +195,7 @@ void Nextion::wait()
         int n = read(msg, nmax);
         if (n > 3)
         {
-            bool has_end = msg[n - 3] == 0xff && msg[n - 2] == 0xff
-                    && msg[n - 1] == 0xff;
+            bool has_end = memcmp(msg + (n - 3), "\xff\xff\xff", 3) == 0;
             if (n >= 4 && msg[n - 4] == 0x88 && has_end)
             {
                 break;
@@ -195,7 +204,7 @@ void Nextion::wait()
         DELAY_US(25000);
     }
 
-    set_feed(".005");
+    set_feed(feed_str_[ind_]);
     set_rpm(rpm_);
 
     set_diagram();
@@ -217,9 +226,9 @@ void Nextion::set_feed(const char *f)
         send(msg2);
     }
 
-    feed_ = f2;
+    feed_[ind_] = f2;
 #if NEXTION_DEBUG
-    printf("aa %d\r\n", int(feed_*10000));
+    printf("aa %d\r\n", int(feed_[ind_]*10000));
 #endif
 }
 
@@ -277,8 +286,7 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
 
     if (n > 3)
     {
-        bool has_end = msg[n - 3] == 0xff && msg[n - 2] == 0xff
-                && msg[n - 1] == 0xff;
+        bool has_end = memcmp(msg + (n - 3), "\xff\xff\xff", 3) == 0;
 
         if (has_end && (n == 10 || n == 4) && msg[n - 4] == 0x88)
         {
@@ -295,7 +303,7 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
             uchar_t k = msg[1];
 
             const char max_n = 6;
-            static char f[max_n+1] = {'\0'};
+            char *f = feed_str_new_[ind_];
             int n = strlen(f);
             bool feed_updated = false;
             static bool in_edit = false;
@@ -337,6 +345,7 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
             }
             else if (k == 0x0d) // enter
             {
+                strcpy(feed_str_[ind_], feed_str_new_[ind_]);
                 f[0] = '\0';
                 feed_updated = false;
                 in_edit = false;
@@ -377,6 +386,7 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
             else if (k == 0x1e) // cancel
             {
                 in_edit = false;
+                f[0] = '\0';
             }
 
             if (feed_updated) {
@@ -436,15 +446,20 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
 //    bool init = do_once;
     do_once = false;
 
+    if (updated) {
+        update_ind();
+        set_feed(feed_str_[ind_]);
+    }
+
     return updated;
 }
 
 void Nextion::getFeed(float &v, bool &metric, bool &feed) const {
-    v = feed_;
+    v = feed_[ind_];
     metric = mode_metric_;
     feed = mode_feed_;
 #if NEXTION_DEBUG
-    printf("bb %d\r\n", int(feed_*10000));
+    printf("bb %d\r\n", int(v*10000));
 #endif
 }
 
@@ -489,5 +504,17 @@ void Nextion::set_sign() {
         send("p2.pic=11\xff\xff\xff");
     } else {
         send("p2.pic=10\xff\xff\xff");
+    }
+}
+
+void Nextion::update_ind() {
+    if (mode_metric_ && mode_feed_) {
+        ind_ = 2; // mm/rev
+    } else if (mode_metric_ && !mode_feed_) {
+        ind_ = 3; // mm
+    } else if (!mode_metric_ && mode_feed_) {
+        ind_ = 0; // in/rev
+    } else if (!mode_metric_ && !mode_feed_) {
+        ind_ = 1; // TPI
     }
 }

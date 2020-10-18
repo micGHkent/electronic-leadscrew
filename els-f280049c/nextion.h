@@ -27,9 +27,10 @@ protected:
     bool enabled_;
     bool alarm_;
     bool at_stop_;
-    float feed_;
-    char feed_str_[16];
-    char feed_str_new_[16];
+    float feed_[4];
+    char feed_str_[4][16];
+    char feed_str_new_[4][16];
+    int ind_;
     bool mode_metric_;
     bool mode_feed_;
     bool reverse_;
@@ -41,6 +42,7 @@ protected:
     void set_diagram();
     void set_units();
     void set_sign();
+    void update_ind();
 };
 
 #endif /* NEXTION_H_ */
