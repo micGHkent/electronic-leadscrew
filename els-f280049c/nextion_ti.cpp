@@ -197,14 +197,22 @@ void transmitSCIBChar(uint16_t a)
 //
 // transmitSCIAMessage - Transmit message via SCIB
 //
-void transmitSCIBMessage(const unsigned char *msg)
+void transmitSCIBMessage(const unsigned char *msg, int nn)
 {
-    int i;
-    i = 0;
-    while (msg[i] != '\0')
-    {
-        transmitSCIBChar(msg[i]);
-        i++;
+    if (nn == -1) {
+        int i;
+        i = 0;
+        while (msg[i] != '\0')
+        {
+            transmitSCIBChar(msg[i]);
+            i++;
+//            DELAY_US(265);
+        }
+    } else {
+        for(int i=0; i<nn; i++) {
+            transmitSCIBChar(msg[i]);
+//            DELAY_US(265);
+        }
     }
 }
 

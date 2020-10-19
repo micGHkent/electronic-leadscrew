@@ -15,7 +15,7 @@ void scia_init();
 
 void scib_init();
 void transmitSCIBChar(uint16_t a);
-void transmitSCIBMessage(const unsigned char *msg);
+void transmitSCIBMessage(const unsigned char *msg, int nn=-1);
 void initSCIBFIFO(void);
 
 #endif /* NEXTION_TI_H_ */

@@ -33,7 +33,7 @@ typedef unsigned char uchar_t;
 
 // Set to 1 to enable debugging of the Nextion messages over the
 // virtual COM port (57600, 8N1)
-#define NEXTION_DEBUG 1
+#define NEXTION_DEBUG 0
 
 #if NEXTION_DEBUG
 #include <ctype.h>
@@ -50,20 +50,7 @@ Nextion::Nextion() :
     reverse_(false),
     in_edit_(false)
 {
-    feed_[0] = .005; // in/rev
-    feed_[1] = 8; // TPI
-    feed_[2] = .128; // mm/rev
-    feed_[3] = 1; // mm pitch
-    strcpy(feed_str_[0], ".005");
-    strcpy(feed_str_[1], "8");
-    strcpy(feed_str_[2], ".128");
-    strcpy(feed_str_[3], "1");
-    feed_str_new_[0][0] = '\0';
-    feed_str_new_[1][0] = '\0';
-    feed_str_new_[2][0] = '\0';
-    feed_str_new_[3][0] = '\0';
     update_ind();
-    //    init();
 }
 
 int Nextion::read(uchar_t buf[], const int nmax)
@@ -79,8 +66,8 @@ int Nextion::read(uchar_t buf[], const int nmax)
         // the Nextion will be received in one function call. To eliminate the
         // delay, add memory to the Nextion routines, continuing to
         // read and tokenize per call until a valid message is gathered.
-        // ~208us to transmit 8-bits at 38.4kBaud
-        DELAY_US(500);
+        // ~260us to transmit 10-bits at 38.4kBaud
+        DELAY_US(265);
     }
 
 #if NEXTION_DEBUG
@@ -99,16 +86,16 @@ int Nextion::read(uchar_t buf[], const int nmax)
     return n;
 }
 
-void Nextion::send(const uchar_t *msg)
+void Nextion::send(const uchar_t *msg, int nn)
 {
-    transmitSCIBMessage((const unsigned char*) msg);
+    transmitSCIBMessage((const unsigned char*) msg, nn);
 
 #if NEXTION_DEBUG
     {
         const uchar_t *p;
-        printf("Send: ");
+        printf("Send (%d): ", nn);
         p = msg;
-        while(*p != '\0') {
+        while((nn == -1 && *p != '\0') || (nn >= 0 && (p - msg < nn))) {
             if(isprint(*p)) {
               putchar(*p);
             } else {
@@ -118,7 +105,7 @@ void Nextion::send(const uchar_t *msg)
         }
         printf(" : ");
         p = msg;
-        while(*p != '\0') {
+        while((nn == -1 && *p != '\0') || (nn >= 0 && (p - msg < nn))) {
             printf(" %02x", *p);
             p++;
         }
@@ -166,6 +153,8 @@ void Nextion::init()
     freopen("scia:", "w", stdout);
     setvbuf(stdout, NULL, _IONBF, 0);
 #endif
+
+    set_params();
 }
 
 // Wait for the Nextion to become ready.
@@ -293,6 +282,9 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
                 in_edit_ = false;
                 updated = true;
                 set_feed();
+
+                store_params();
+                restore_params();
             }
             else if (k == 0x1a) // mode/dir change
             {
@@ -531,5 +523,59 @@ void Nextion::update_ind() {
         ind_ = 0; // in/rev
     } else if (!mode_metric_ && !mode_feed_) {
         ind_ = 1; // TPI
+    }
+}
+
+void Nextion::store_params() {
+    return;
+
+    unsigned char cmd[16];
+    sprintf((char*)cmd, "wept 0,%d\xff\xff\xff", 4*16);
+    send(cmd);
+    DELAY_US(500000);
+    unsigned char buf[4];
+    read((unsigned char*)buf, 4); // (ready) 0xFE 0xFF 0xFF 0xFF
+    DELAY_US(100000);
+    send((unsigned char *)feed_str_, 4*16);
+    DELAY_US(100000);
+    read((unsigned char*)buf, 4); // (finished) 0xFD 0xFF 0xFF 0xFF
+}
+
+void Nextion::restore_params() {
+    return;
+
+    unsigned char cmd[4*16+1] = { '\0' };
+    sprintf((char*)cmd, "rept 0,%d\xff\xff\xff", 4*16);
+    send(cmd);
+//    DELAY_US(10000);
+    unsigned char buf[4];
+//    read((unsigned char*)buf, 4);
+    read((unsigned char*)feed_str_, 4*16);
+    read((unsigned char*)buf, 4);
+}
+
+void Nextion::set_params() {
+    restore_params();
+
+    bool valid = true;
+    for (int i=0; i<4; i++) {
+        if(strtof(feed_str_[i], NULL) == 0.) {
+            valid = false;
+            break;
+        }
+    }
+    valid = false;
+
+    if (! valid) {
+        strcpy(feed_str_[0], ".005"); // in/rev
+        strcpy(feed_str_[1], "8");    // TPI
+        strcpy(feed_str_[2], ".128"); // mm/rev
+        strcpy(feed_str_[3], "1");    // mm pitch
+        store_params();
+    }
+
+    for (int i=0; i<4; i++) {
+        feed_[i] = strtof(feed_str_[i], NULL);
+        feed_str_new_[i][0] = '\0';
     }
 }

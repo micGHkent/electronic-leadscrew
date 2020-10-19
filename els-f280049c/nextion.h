@@ -37,7 +37,7 @@ protected:
     bool in_edit_;
 
     int read(unsigned char buf[], const int nmax);
-    void send(const unsigned char *msg);
+    void send(const unsigned char *msg, int nn=-1);
     void set_rpm(Uint16 rpm);
     void set_feed();
     void set_feed_new();
@@ -48,6 +48,9 @@ protected:
     void set_alarm();
     void set_all();
     void update_ind();
+    void store_params();
+    void restore_params();
+    void set_params();
 };
 
 #endif /* NEXTION_H_ */
