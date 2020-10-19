@@ -141,7 +141,7 @@ void main(void)
 //        debug.end2();
 
         // delay
-//        DELAY_US(1000000 / UI_REFRESH_RATE_HZ);
+        DELAY_US(1000000 / UI_REFRESH_RATE_HZ);
     }
 }
 
