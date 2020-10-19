@@ -47,7 +47,8 @@ Nextion::Nextion() :
     at_stop_(false),
     mode_metric_(false),
     mode_feed_(true),
-    reverse_(false)
+    reverse_(false),
+    in_edit_(false)
 {
     feed_[0] = .005; // in/rev
     feed_[1] = 8; // TPI
@@ -204,61 +205,7 @@ void Nextion::wait()
         DELAY_US(25000);
     }
 
-    set_feed(feed_str_[ind_]);
-    set_rpm(rpm_);
-
-    set_diagram();
-    set_units();
-    set_sign();
-}
-
-void Nextion::set_feed(const char *f)
-{
-    float f2 = strtof(f, NULL);
-
-    {
-        uchar_t msg2[8 + 4 + 5];
-        uchar_t *p = msg2 + sprintf((char*)msg2, "t1.txt=\"%s\"", f);
-        *p++ = '\xff';
-        *p++ = '\xff';
-        *p++ = '\xff';
-        *p++ = '\0';
-        send(msg2);
-    }
-
-    feed_[ind_] = f2;
-#if NEXTION_DEBUG
-    printf("aa %d\r\n", int(feed_[ind_]*10000));
-#endif
-}
-
-
-void Nextion::set_rpm(Uint16 rpm)
-{
-    static bool do_once = true;
-
-    if (rpm_ != rpm || do_once)
-    {
-        uchar_t msg2[32];
-        sprintf((char*) msg2, "t0.txt=\"%u\"\xff\xff\xff", rpm);
-        send(msg2);
-
-        rpm_ = rpm;
-        do_once = false;
-    }
-
-    if (false) {
-        int m = 0;
-        int M = 3000;
-        int h = 160;
-//        rpm=3000;
-        uchar_t nex_buffer[32];
-        int v = (int)(float(rpm - m) / float(M - m) * float(h));
-        if (v < 0) v = 0;
-        if (v > h) v = h;
-        sprintf((char*)nex_buffer, "add 28,0,%d\xff\xff\xff", v);
-        send(nex_buffer);
-    }
+    set_all();
 }
 
 bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
@@ -266,14 +213,15 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
     set_rpm(rpm);
 
     bool updated = false;
-
-    static bool do_once = true;
-    updated = updated || do_once;
-
     bool p_enabled = enabled_;
 
-    updated = updated || alarm_ != alarm;
-    alarm_ = alarm;
+    // Update alarm indicator
+    if (alarm_ != alarm) {
+        alarm_ = alarm;
+        enabled_ = false;
+        set_alarm();
+        updated = true;
+    }
 
     // Check the limit switch and update the enabled state
     at_stop_ = GPIO_ReadPin(25);
@@ -292,12 +240,9 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
         {
             // Reinitialize the screen if the Nextion resets, through a flag
             // passed back to UserInterface the feed information is reinitialized.
-            do_once = true;
-#if NEXTION_DEBUG
-            printf("Reinitialize\r\n");
-#endif
+            set_all();
         }
-        else if (has_end && n == 5 && msg[0] == 0x25)
+        else if (has_end && n == 5 && msg[0] == 0x25 && !alarm_)
         {
             // Touch Event
             uchar_t k = msg[1];
@@ -305,17 +250,15 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
             const char max_n = 6;
             char *f = feed_str_new_[ind_];
             int n = strlen(f);
-            bool feed_updated = false;
-            static bool in_edit = false;
 
             if (0x30 <= k && k <= 0x39) // number, 0-9
             {
                 if (n < max_n) {
                     f[n++] = k;
                     f[n] = '\0';
-                    feed_updated = true;
+                    set_feed_new();
                 }
-                in_edit = true;
+                in_edit_ = true;
             }
             else if (k == 0x2e) // .
             {
@@ -330,125 +273,87 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
                     if (!has_dot) {
                         f[n++] = k;
                         f[n] = '\0';
-                        feed_updated = true;
+                        set_feed_new();
                     }
                 }
-                in_edit = true;
+                in_edit_ = true;
             }
             else if (k == 0x08) // backspace
             {
                 if (n > 0) {
                     f[n-1] = '\0';
-                    feed_updated = true;
+                    set_feed_new();
                 }
-                in_edit = true;
+                in_edit_ = true;
             }
             else if (k == 0x0d) // enter
             {
                 strcpy(feed_str_[ind_], feed_str_new_[ind_]);
                 f[0] = '\0';
-                feed_updated = false;
-                in_edit = false;
+                in_edit_ = false;
+                updated = true;
+                set_feed();
             }
             else if (k == 0x1a) // mode/dir change
             {
-                updated = true;
+                if(! in_edit_)
+                {
+                    updated = true;
 
-                if (!mode_feed_ && !reverse_) {
-                    mode_feed_ = true;
-                } else if (mode_feed_ && !reverse_) {
-                    mode_feed_ = false;
-                    reverse_ = true;
-                } else if (!mode_feed_ && reverse_) {
-                    mode_feed_ = true;
-                } else if (mode_feed_ && reverse_) {
-                    mode_feed_ = false;
-                    reverse_ = false;
+                    if (!mode_feed_ && !reverse_) {
+                        mode_feed_ = true;
+                    } else if (mode_feed_ && !reverse_) {
+                        mode_feed_ = false;
+                        reverse_ = true;
+                    } else if (!mode_feed_ && reverse_) {
+                        mode_feed_ = true;
+                    } else if (mode_feed_ && reverse_) {
+                        mode_feed_ = false;
+                        reverse_ = false;
+                    }
+                    set_diagram();
+                    set_units();
                 }
-                set_diagram();
-                set_units();
             }
             else if (k == 0x1b) // units change
             {
-                mode_metric_ = !mode_metric_;
-                updated = true;
+                if (! in_edit_)
+                {
+                    mode_metric_ = !mode_metric_;
+                    updated = true;
 
-                set_units();
+                    set_units();
+                }
             }
             else if (k == 0x1c) // start/stop
             {
-                enabled_ = !enabled_;
+                if (p_enabled == enabled_) {
+                    // Remain disabled if limit switch is tripped, else toggle enable.
+                    enabled_ = !enabled_ && !at_stop_;
+                }
             }
             else if (k == 0x1d) // nothing
             {
-                in_edit = false;
             }
             else if (k == 0x1e) // cancel
             {
-                in_edit = false;
                 f[0] = '\0';
+                set_feed();
+                in_edit_ = false;
             }
-
-            if (feed_updated) {
-                updated = true;
-                set_feed(f);
-            }
-
-            if (in_edit) {
-                send("t1.pco=13812\xff\xff\xff");
-            } else {
-                send("t1.pco=65535\xff\xff\xff");
-            }
-        }
-    }
-
-    // Remain disabled if limit switch is tripped, else toggle enable.
-    //                    enabled_ = !at_stop_ && !enabled_;
-
-    // Set credits message once
-    if (do_once)
-    {
-        const uchar_t *msg = { "t2.txt=\"ELS 1.3.01\r\n"
-                               "James Clough (Clough42)\r\n"
-                               "\r\n"
-                               "Touchscreen interface\r\n"
-                               "Kent A. Vander Velden"
-                               "\"\xff\xff\xff" };
-        send(msg);
-    }
-
-    // Update alarm indicator
-    {
-        static bool p_alarm = true;
-        const uchar_t *msgs[2] = { "r1.val=0\xff\xff\xff",
-                                   "r1.val=1\xff\xff\xff" };
-
-        if (p_alarm != alarm || do_once)
-        {
-            // In this fast loop, update the display only if needed to avoid flicker.
-            if (alarm) {
-                send("vis 4,0\xff\xff\xff");
-                send("vis 25,1\xff\xff\xff");
-            } else {
-                send("vis 25,0\xff\xff\xff");
-            }
-            send(msgs[alarm ? 1 : 0]);
-            p_alarm = alarm;
         }
     }
 
     // Update the enable/disable button
-    if (p_enabled != enabled_ || do_once)
+    if (p_enabled != enabled_)
     {
         set_sign();
+        updated = true;
     }
-
-//    bool init = do_once;
-    do_once = false;
 
     if (updated) {
         update_ind();
-        set_feed(feed_str_[ind_]);
+        set_feed();
     }
 
     return updated;
@@ -473,6 +378,80 @@ bool Nextion::isEnabled() const {
 
 bool Nextion::isReverse() const {
     return reverse_;
+}
+
+void Nextion::set_feed()
+{
+    const char *f = feed_str_[ind_];
+    float f2 = strtof(f, NULL);
+    feed_[ind_] = f2;
+
+    {
+        uchar_t msg2[8 + 4 + 5];
+        uchar_t *p = msg2 + sprintf((char*)msg2, "t1.txt=\"%s\"", f);
+        *p++ = '\xff';
+        *p++ = '\xff';
+        *p++ = '\xff';
+        *p++ = '\0';
+        send(msg2);
+    }
+
+    send("t1.pco=65535\xff\xff\xff");
+
+#if NEXTION_DEBUG
+    printf("aa %d\r\n", int(f2 * 10000));
+#endif
+}
+
+void Nextion::set_feed_new()
+{
+    const char *f = feed_str_new_[ind_];
+    float f2 = strtof(f, NULL);
+
+    {
+        uchar_t msg2[8 + 4 + 5];
+        uchar_t *p = msg2 + sprintf((char*)msg2, "t1.txt=\"%s\"", f);
+        *p++ = '\xff';
+        *p++ = '\xff';
+        *p++ = '\xff';
+        *p++ = '\0';
+        send(msg2);
+    }
+
+    send("t1.pco=13812\xff\xff\xff");
+
+#if NEXTION_DEBUG
+    printf("aa %d\r\n", int(f2 * 10000));
+#endif
+}
+
+void Nextion::set_rpm(Uint16 rpm)
+{
+    if (rpm_ != rpm)
+    {
+        rpm_ = rpm;
+
+        uchar_t msg2[32];
+        sprintf((char*) msg2, "t0.txt=\"%u\"\xff\xff\xff", rpm_);
+        send(msg2);
+    }
+
+    set_graph();
+}
+
+void Nextion::set_graph() {
+    const int graph_id = 22;
+    const int rpm_m_ = 0;
+    const int rpm_M_ = 3000;
+    const int graph_h = 160;
+
+    int v = (int)(float(rpm_ - rpm_m_) / float(rpm_M_ - rpm_m_) * float(graph_h));
+    if (v < 0) v = 0;
+    if (v > graph_h) v = graph_h;
+
+    uchar_t nex_buffer[32];
+    sprintf((char*)nex_buffer, "add %d,0,%d\xff\xff\xff", graph_id, v);
+    send(nex_buffer);
 }
 
 void Nextion::set_diagram() {
@@ -505,6 +484,42 @@ void Nextion::set_sign() {
     } else {
         send("p2.pic=10\xff\xff\xff");
     }
+}
+
+void Nextion::set_alarm() {
+    if (alarm_) {
+        send("vis 4,0\xff\xff\xff");
+        send("vis 25,1\xff\xff\xff");
+    } else {
+        send("vis 25,0\xff\xff\xff");
+    }
+}
+
+void Nextion::set_all() {
+    update_ind();
+
+    set_feed();
+    set_rpm(rpm_);
+
+    set_diagram();
+    set_units();
+    set_sign();
+    set_alarm();
+
+    // Set credits message
+    {
+        const uchar_t *msg = { "t2.txt=\"ELS 1.3.01\r\n"
+                               "James Clough (Clough42)\r\n"
+                               "\r\n"
+                               "Touchscreen interface\r\n"
+                               "Kent A. Vander Velden"
+                               "\"\xff\xff\xff" };
+        send(msg);
+    }
+
+#if NEXTION_DEBUG
+    printf("Initialized\r\n");
+#endif
 }
 
 void Nextion::update_ind() {

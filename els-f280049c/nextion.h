@@ -34,14 +34,19 @@ protected:
     bool mode_metric_;
     bool mode_feed_;
     bool reverse_;
+    bool in_edit_;
 
     int read(unsigned char buf[], const int nmax);
     void send(const unsigned char *msg);
     void set_rpm(Uint16 rpm);
-    void set_feed(const char *f);
+    void set_feed();
+    void set_feed_new();
+    void set_graph();
     void set_diagram();
     void set_units();
     void set_sign();
+    void set_alarm();
+    void set_all();
     void update_ind();
 };
 
