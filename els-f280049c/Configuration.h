@@ -147,7 +147,7 @@
 #define UI_REFRESH_RATE_HZ 100
 
 // RPM recalculation rate, in Hz
-#define RPM_CALC_RATE_HZ 2
+#define RPM_CALC_RATE_HZ 5
 
 // Microprocessor system clock
 #define CPU_CLOCK_MHZ 100
