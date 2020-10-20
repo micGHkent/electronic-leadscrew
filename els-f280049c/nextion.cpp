@@ -28,6 +28,7 @@
 #include "device.h"
 #include "nextion.h"
 #include "nextion_ti.h"
+#include "Configuration.h" // Only for ENCODER_RESOLUTION
 
 typedef unsigned char uchar_t;
 
@@ -42,6 +43,8 @@ typedef unsigned char uchar_t;
 
 Nextion::Nextion() :
     rpm_(0),
+    position_(0),
+    position_mode_(0),
     enabled_(false),
     alarm_(false),
     at_stop_(false),
@@ -194,12 +197,13 @@ void Nextion::wait()
         DELAY_US(25000);
     }
 
-    set_all();
+    set_all(true);
 }
 
-bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
+bool Nextion::update(Uint16 rpm, Uint32 position, bool alarm, bool enabled)
 {
     set_rpm(rpm);
+    set_position(position);
 
     bool updated = false;
     bool p_enabled = enabled_;
@@ -324,7 +328,7 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
                     enabled_ = !enabled_ && !at_stop_;
                 }
             }
-            else if (k == 0x1d) // nothing
+            else if (k == 0x1d) // unnamed button
             {
             }
             else if (k == 0x1e) // cancel
@@ -332,6 +336,20 @@ bool Nextion::update(Uint16 rpm, bool alarm, bool enabled)
                 f[0] = '\0';
                 set_feed();
                 in_edit_ = false;
+            }
+            else if (k == 0x1d) // Alarm
+            {
+            }
+            else if (k == 0x1f) // RPM meter
+            {
+            }
+            else if (k == 0x20) // encoder position
+            {
+                position_mode_ = (position_mode_ + 1) % 6;
+                set_position(position_, true);
+            }
+            else if (k == 0x21) // Credits
+            {
             }
         }
     }
@@ -417,9 +435,9 @@ void Nextion::set_feed_new()
 #endif
 }
 
-void Nextion::set_rpm(Uint16 rpm)
+void Nextion::set_rpm(Uint16 rpm, bool force)
 {
-    if (rpm_ != rpm)
+    if (rpm_ != rpm || force)
     {
         rpm_ = rpm;
 
@@ -444,6 +462,62 @@ void Nextion::set_graph() {
     uchar_t nex_buffer[32];
     sprintf((char*)nex_buffer, "add %d,0,%d\xff\xff\xff", graph_id, v);
     send(nex_buffer);
+}
+
+void Nextion::set_position(Uint32 position, bool force)
+{
+    if (position_ != position || force)
+    {
+        position_ = position;
+
+        uchar_t msg2[64] = {"t3.txt=\"off\"\xff\xff\xff"};
+        if (position_mode_ == 3) {
+            // Show raw encoder count.
+            sprintf((char*) msg2, "t3.txt=\"%08lutc\"\xff\xff\xff", position_);
+        }
+        else if (position_mode_ == 4) {
+            // Show encoder count modulo encoder count per revolution.
+            Uint32 v = position_ % (ENCODER_RESOLUTION);
+            sprintf((char*) msg2, "t3.txt=\"%04luc\"\xff\xff\xff", v);
+        }
+        else if (position_mode_ == 2) {
+            // Show percent of a full rotation.
+            float v = float(position_ % (ENCODER_RESOLUTION)) / float(ENCODER_RESOLUTION) * float(100);
+//            sprintf((char*) msg2, "t3.txt=\"%.6f\"\xff\xff\xff", v);
+            int a = int(v);
+            int b = int((v - float(a)) * 100);
+            sprintf((char*) msg2, "t3.txt=\"%02d.%02d%%\"\xff\xff\xff", a, b);
+        }
+        else if (position_mode_ == 1) {
+            // Show decimal degrees of a full rotation.
+            float v = float(position_ % (ENCODER_RESOLUTION)) / float(ENCODER_RESOLUTION) * float(360);
+//            sprintf((char*) msg2, "t3.txt=\"%.6f\"\xff\xff\xff", v);
+            int a = int(v);
+            int b = int((v - float(a)) * 100);
+            sprintf((char*) msg2, "t3.txt=\"%03d.%02dd\"\xff\xff\xff", a, b);
+        }
+        else if (position_mode_ == 0) {
+            // Show degrees and minutes (and maybe seconds) of a full rotation.
+            // There are 60 minutes in a degree. 1/60 = 0.0167 deg
+            // There are 3600 seconds in a degree. 1/3600 = 0.000278 deg
+            // If an encoder has 4096 counts per revolutions, the finest graduation
+            // possible is 360/4096 = 0.0879 degree.
+            // With a 4096-count encoder, display minutes makes sense, but seconds
+            // is beyond the encoder's resolution.
+            // To display meaningful seconds, a 524288-count encoder or better
+            // would be required.
+            float dd = float(position_ % (ENCODER_RESOLUTION)) / float(ENCODER_RESOLUTION) * 360.;
+            int d = int(dd);
+            int m = int((dd - d) * 60);
+//            int s = int((dd - d - float(m) / float(60.)) * 3600);
+//            sprintf((char*) msg2, "t3.txt=\"%03dd %02d' %02d''\"\xff\xff\xff", d, m, s);
+            sprintf((char*) msg2, "t3.txt=\"%03dd %02d'\"\xff\xff\xff", d, m);
+        }
+        else if (position_mode_ == 5) {
+            // Disable updates of rotary position.
+        }
+        send(msg2);
+    }
 }
 
 void Nextion::set_diagram() {
@@ -487,11 +561,12 @@ void Nextion::set_alarm() {
     }
 }
 
-void Nextion::set_all() {
+void Nextion::set_all(bool force) {
     update_ind();
 
     set_feed();
-    set_rpm(rpm_);
+    set_rpm(rpm_, force);
+    set_position(position_, force);
 
     set_diagram();
     set_units();
@@ -527,8 +602,7 @@ void Nextion::update_ind() {
 }
 
 void Nextion::store_params() {
-    return;
-
+#if 0
     unsigned char cmd[16];
     sprintf((char*)cmd, "wept 0,%d\xff\xff\xff", 4*16);
     send(cmd);
@@ -539,11 +613,11 @@ void Nextion::store_params() {
     send((unsigned char *)feed_str_, 4*16);
     DELAY_US(100000);
     read((unsigned char*)buf, 4); // (finished) 0xFD 0xFF 0xFF 0xFF
+#endif
 }
 
 void Nextion::restore_params() {
-    return;
-
+#if 0
     unsigned char cmd[4*16+1] = { '\0' };
     sprintf((char*)cmd, "rept 0,%d\xff\xff\xff", 4*16);
     send(cmd);
@@ -552,6 +626,7 @@ void Nextion::restore_params() {
 //    read((unsigned char*)buf, 4);
     read((unsigned char*)feed_str_, 4*16);
     read((unsigned char*)buf, 4);
+#endif
 }
 
 void Nextion::set_params() {

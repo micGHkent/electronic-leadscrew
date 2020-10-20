@@ -39,7 +39,7 @@ void UserInterface :: loop()
 {
     // KVV
     Nextion *nextion = (Nextion*)controlPanel;
-    bool updated = nextion->update(core->getRPM(), core->isAlarm(), core->isEnabled());
+    bool updated = nextion->update(core->getRPM(), core->getPosition(), core->isAlarm(), core->isEnabled());
     core->setEnabled(nextion->isEnabled());
     if (updated) {
         float v;

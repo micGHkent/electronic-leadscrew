@@ -16,7 +16,7 @@ public:
 
     void init();
     void wait();
-    bool update(Uint16 rpm, bool alarm, bool enabled);
+    bool update(Uint16 rpm, Uint32 position, bool alarm, bool enabled);
     bool isAtStop() const;
     bool isEnabled() const;
     bool isReverse() const;
@@ -24,6 +24,8 @@ public:
 
 protected:
     Uint16 rpm_;
+    Uint32 position_;
+    int position_mode_;
     bool enabled_;
     bool alarm_;
     bool at_stop_;
@@ -38,7 +40,8 @@ protected:
 
     int read(unsigned char buf[], const int nmax);
     void send(const unsigned char *msg, int nn=-1);
-    void set_rpm(Uint16 rpm);
+    void set_rpm(Uint16 rpm, bool force=false);
+    void set_position(Uint32 position, bool force=false);
     void set_feed();
     void set_feed_new();
     void set_graph();
@@ -46,7 +49,7 @@ protected:
     void set_units();
     void set_sign();
     void set_alarm();
-    void set_all();
+    void set_all(bool force=false);
     void update_ind();
     void store_params();
     void restore_params();

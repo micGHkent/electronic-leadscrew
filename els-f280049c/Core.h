@@ -65,6 +65,7 @@ public:
     // KVV
     void setEnabled(bool v);
     bool isEnabled() const;
+    Uint32 getPosition();
 };
 
 // KVV
@@ -79,6 +80,10 @@ inline void Core :: setEnabled(bool v)
 inline bool Core :: isEnabled() const
 {
     return enabled;
+}
+
+inline Uint32 Core :: getPosition() {
+    return encoder->getPosition();
 }
 
 inline Uint16 Core :: getRPM()
