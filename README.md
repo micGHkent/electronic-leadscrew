@@ -1,3 +1,6 @@
+# Touchscreen details
+See [project notes](https://www.notion.so/Touchscreen-for-Clough42-ELS-99899e746e064c45b51a9397c1d289a5)
+
 # Clough42 Lathe Electronic Leadscrew Controller
 
 This is the firmware for an experimental lathe electronic leadscrew controller.  The goal is to replace the change
