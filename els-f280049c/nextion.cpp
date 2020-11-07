@@ -33,13 +33,73 @@
 typedef unsigned char uchar_t;
 
 // Set to 1 to enable debugging of the Nextion messages over the
-// virtual COM port (57600, 8N1)
+// virtual COM port (115200, 8N1)
 #define NEXTION_DEBUG 0
 
 #if NEXTION_DEBUG
 #include <ctype.h>
 #include "launchxl_ex1_sci_io.h"
 #endif
+
+__interrupt void scibTxISR(void);
+__interrupt void scibRxISR(void);
+
+//
+// sciaTxISR - Disable the TXFF interrupt and print message asking
+//             for two characters.
+//
+__interrupt void
+scibTxISR(void)
+{
+    //
+    // Disable the TXRDY interrupt.
+    //
+//    SCI_disableInterrupt(SCIB_BASE, SCI_INT_TXFF);
+
+//    msg = "\r\nEnter two characters: \0";
+//    SCI_writeCharArray(SCIB_BASE, (uint16_t*)msg, 26);
+
+    //
+    // Acknowledge the PIE interrupt.
+    //
+    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP9);
+}
+
+int nnn = 0;
+unsigned char buff[256];
+
+//
+// sciaRxISR - Read two characters from the RXBUF and echo them back.
+//
+__interrupt void
+scibRxISR(void)
+{
+    uint16_t c;
+
+    //
+    // Enable the TXFF interrupt again.
+    //
+//    SCI_enableInterrupt(SCIB_BASE, SCI_INT_TXFF);
+
+    //
+    // Read two characters from the FIFO.
+    //
+//    c = SCI_readCharBlockingFIFO(SCIB_BASE);
+    while(SCI_isDataAvailableNonFIFO(SCIB_BASE)) {
+    c = SCI_readCharBlockingNonFIFO(SCIB_BASE);
+    if (nnn < 256) {
+        buff[nnn++] = (unsigned char)(c & 0xff);
+    }
+    }
+
+    //
+    // Clear the SCI RXFF interrupt and acknowledge the PIE interrupt.
+    //
+//    SCI_clearInterruptStatus(SCIB_BASE, SCI_INT_RXFF);
+    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP9);
+
+//    counter++;
+}
 
 Nextion::Nextion() :
     rpm_(0),
@@ -60,10 +120,12 @@ int Nextion::read(uchar_t buf[], const int nmax)
 {
     int n = 0;
 
-    while (n < nmax && ScibRegs.SCIFFRX.bit.RXFFST)
+//    while (n < nmax && ScibRegs.SCIFFRX.bit.RXFFST)
+    while (n < nmax && SCI_isDataAvailableNonFIFO(SCIB_BASE))
     {
-        uint16_t ReceivedChar = ScibRegs.SCIRXBUF.all;
-        buf[n++] = ReceivedChar;
+        uint16_t         c = SCI_readCharBlockingNonFIFO(SCIB_BASE);
+
+        buf[n++] = c;
 
         // This delay is done to increase chances that a complete message from
         // the Nextion will be received in one function call. To eliminate the
@@ -91,7 +153,21 @@ int Nextion::read(uchar_t buf[], const int nmax)
 
 void Nextion::send(const uchar_t *msg, int nn)
 {
-    transmitSCIBMessage((const unsigned char*) msg, nn);
+    if (nn == -1) {
+        int i;
+        i = 0;
+        while (msg[i] != '\0')
+        {
+//            SCI_writeCharBlockingFIFO(SCIB_BASE, uint16_t(msg[i]));
+            SCI_writeCharBlockingNonFIFO(SCIB_BASE, uint16_t(msg[i]));
+            i++;
+        }
+    } else {
+        for(int i=0; i<nn; i++) {
+//            SCI_writeCharBlockingFIFO(SCIB_BASE, uint16_t(msg[i]));
+            SCI_writeCharBlockingNonFIFO(SCIB_BASE, uint16_t(msg[i]));
+        }
+    }
 
 #if NEXTION_DEBUG
     {
@@ -106,12 +182,14 @@ void Nextion::send(const uchar_t *msg, int nn)
             }
             p++;
         }
+#if 0
         printf(" : ");
         p = msg;
         while((nn == -1 && *p != '\0') || (nn >= 0 && (p - msg < nn))) {
             printf(" %02x", *p);
             p++;
         }
+#endif
         putchar('\r');
         putchar('\n');
     }
@@ -126,27 +204,30 @@ void Nextion::init()
     GPIO_SetupPinOptions(25, GPIO_INPUT, GPIO_OPENDRAIN | GPIO_PULLUP);
 
 #if NEXTION_DEBUG
-    GPIO_setPinConfig(GPIO_28_SCIRXDA);
-    GPIO_setPinConfig(GPIO_29_SCITXDA);
+    GPIO_setMasterCore(DEVICE_GPIO_PIN_SCIRXDA, GPIO_CORE_CPU1);
+    GPIO_setPinConfig(DEVICE_GPIO_CFG_SCIRXDA);
+    GPIO_setDirectionMode(DEVICE_GPIO_PIN_SCIRXDA, GPIO_DIR_MODE_IN);
+    GPIO_setPadConfig(DEVICE_GPIO_PIN_SCIRXDA, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(DEVICE_GPIO_PIN_SCIRXDA, GPIO_QUAL_ASYNC);
 
-    GPIO_setQualificationMode(28, GPIO_QUAL_ASYNC);
+    GPIO_setMasterCore(DEVICE_GPIO_PIN_SCITXDA, GPIO_CORE_CPU1);
+    GPIO_setPinConfig(DEVICE_GPIO_CFG_SCITXDA);
+    GPIO_setDirectionMode(DEVICE_GPIO_PIN_SCITXDA, GPIO_DIR_MODE_OUT);
+    GPIO_setPadConfig(DEVICE_GPIO_PIN_SCITXDA, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(DEVICE_GPIO_PIN_SCITXDA, GPIO_QUAL_ASYNC);
 
-    scia_init();
-#endif
+    SCI_performSoftwareReset(SCIA_BASE);
 
-    GPIO_setPinConfig(GPIO_13_SCIRXDB);
-    GPIO_setPinConfig(GPIO_40_SCITXDB);
+    SCI_setConfig(SCIA_BASE, 25000000, 115200, (SCI_CONFIG_WLEN_8 |
+                                                SCI_CONFIG_STOP_ONE |
+                                                SCI_CONFIG_PAR_NONE));
+    SCI_resetChannels(SCIA_BASE);
+//    SCI_clearInterruptStatus(SCIA_BASE, SCI_INT_TXFF | SCI_INT_RXFF);
+//    SCI_enableFIFO(SCIA_BASE);
+    SCI_enableModule(SCIA_BASE);
+    SCI_performSoftwareReset(SCIA_BASE);
 
-    GPIO_setPadConfig(13, GPIO_PIN_TYPE_PULLUP);
-    // GPIO_setPadConfig(40, GPIO_PIN_TYPE_PULLUP);
 
-    GPIO_setQualificationMode(13, GPIO_QUAL_ASYNC);
-
-    scib_init();
-
-    initSCIBFIFO();
-
-#if NEXTION_DEBUG
     // To help with debugging, configure the UART that is connected to
     // USB port, the virtual terminal, to be stdout.
     volatile int status = 0;
@@ -156,6 +237,70 @@ void Nextion::init()
     freopen("scia:", "w", stdout);
     setvbuf(stdout, NULL, _IONBF, 0);
 #endif
+
+    // Not already defined in CWare2000 v3.03 device.h
+#define DEVICE_GPIO_PIN_SCIRXDB     13U             // GPIO number for SCI RX
+#define DEVICE_GPIO_PIN_SCITXDB     40U             // GPIO number for SCI TX
+#define DEVICE_GPIO_CFG_SCIRXDB     GPIO_13_SCIRXDB // "pinConfig" for SCI RX
+#define DEVICE_GPIO_CFG_SCITXDB     GPIO_40_SCITXDB // "pinConfig" for SCI TX
+
+    GPIO_setMasterCore(DEVICE_GPIO_PIN_SCIRXDB, GPIO_CORE_CPU1);
+    GPIO_setPinConfig(DEVICE_GPIO_CFG_SCIRXDB);
+    GPIO_setDirectionMode(DEVICE_GPIO_PIN_SCIRXDB, GPIO_DIR_MODE_IN);
+    GPIO_setPadConfig(DEVICE_GPIO_PIN_SCIRXDB, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(DEVICE_GPIO_PIN_SCIRXDB, GPIO_QUAL_ASYNC);
+
+    GPIO_setMasterCore(DEVICE_GPIO_PIN_SCITXDB, GPIO_CORE_CPU1);
+    GPIO_setPinConfig(DEVICE_GPIO_CFG_SCITXDB);
+    GPIO_setDirectionMode(DEVICE_GPIO_PIN_SCITXDB, GPIO_DIR_MODE_OUT);
+    GPIO_setPadConfig(DEVICE_GPIO_PIN_SCITXDB, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(DEVICE_GPIO_PIN_SCITXDB, GPIO_QUAL_ASYNC);
+
+//    Interrupt_register(INT_SCIB_TX, scibTxISR);
+    Interrupt_register(INT_SCIB_RX, scibRxISR);
+
+    SCI_performSoftwareReset(SCIB_BASE);
+
+    SCI_setConfig(SCIB_BASE, 25000000, 38400, (SCI_CONFIG_WLEN_8 |
+                                               SCI_CONFIG_STOP_ONE |
+                                               SCI_CONFIG_PAR_NONE));
+    SCI_resetChannels(SCIB_BASE);
+//    SCI_clearInterruptStatus(SCIB_BASE, SCI_INT_TXFF | SCI_INT_RXFF);
+//    SCI_clearInterruptStatus(SCIB_BASE, SCI_INT_TXRDY | SCI_INT_RXRDY_BRKDT);
+    SCI_clearInterruptStatus(SCIB_BASE, SCI_INT_RXRDY_BRKDT);
+//    SCI_enableFIFO(SCIB_BASE);
+    SCI_enableModule(SCIB_BASE);
+    SCI_performSoftwareReset(SCIB_BASE);
+
+    //
+    // Set the transmit FIFO level to 0 and the receive FIFO level to 2.
+    // Enable the TXFF and RXFF interrupts.
+    //
+//    SCI_setFIFOInterruptLevel(SCIB_BASE, SCI_FIFO_TX1, SCI_FIFO_RX1);
+//    SCI_enableInterrupt(SCIB_BASE, SCI_INT_RXFF);
+//    SCI_enableInterrupt(SCIB_BASE, SCI_INT_TXFF | SCI_INT_RXFF);
+//    SCI_enableInterrupt(SCIB_BASE, SCI_INT_TXRDY | SCI_INT_RXRDY_BRKDT);
+    SCI_enableInterrupt(SCIB_BASE, SCI_INT_RXRDY_BRKDT);
+
+//    SCI_clearInterruptStatus(SCIB_BASE, SCI_INT_TXFF | SCI_INT_RXFF);
+//    SCI_clearInterruptStatus(SCIB_BASE, SCI_INT_TXRDY | SCI_INT_RXRDY_BRKDT);
+    SCI_clearInterruptStatus(SCIB_BASE, SCI_INT_RXRDY_BRKDT);
+
+    Interrupt_enable(INT_SCIB_RX);
+//    Interrupt_enable(INT_SCIB_TX);
+    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP9);
+
+//    GPIO_setPinConfig(GPIO_13_SCIRXDB);
+//    GPIO_setPinConfig(GPIO_40_SCITXDB);
+//
+//    GPIO_setPadConfig(13, GPIO_PIN_TYPE_PULLUP);
+//    // GPIO_setPadConfig(40, GPIO_PIN_TYPE_PULLUP);
+//
+//    GPIO_setQualificationMode(13, GPIO_QUAL_ASYNC);
+
+//    scib_init();
+
+//    initSCIBFIFO();
 
     set_params();
 }
@@ -179,7 +324,7 @@ void Nextion::wait()
     // The Nextion is ready fast and I rarely saw the ready message unless
     // power cycling only the Nextion. It may be better to test if the Nextion
     // is ready by checking its response to a query like which page is current.
-
+#if 0
     // Timeout after 40 * 25ms = 1s
     for (int i = 0; i < 40; i++)
     {
@@ -196,7 +341,8 @@ void Nextion::wait()
         }
         DELAY_US(25000);
     }
-
+#endif
+    DELAY_US(1000000);
     set_all(true);
 }
 
@@ -220,10 +366,52 @@ bool Nextion::update(Uint16 rpm, Uint32 position, bool alarm, bool enabled)
     at_stop_ = GPIO_ReadPin(25);
     enabled_ = enabled_ && enabled && !at_stop_;
 
+    if (nnn > 200) nnn = 0;
+
     // Receive message from Nextion display
     const int nmax = 12;
-    uchar_t msg[nmax];
-    int n = read(msg, nmax);
+    uchar_t msg[256];
+//    int n = read(msg, nmax);
+    int n = 0;
+
+//    DINT;
+
+//    Interrupt_disable(INT_SCIB_RX);
+//    SCI_disableInterrupt(SCIB_BASE, SCI_INT_RXFF);
+#if NEXTION_DEBUG
+    if (nnn > 0) {
+        printf("buff(%d)", nnn);
+        for (int ii=0; ii<nnn; ii++) {
+            printf(" %02x", buff[ii]);
+        }
+        printf("\r\n");
+    }
+#endif
+    if (nnn > 3) {
+        for (int i=0; i<=nnn-3; i++) {
+            bool has_end = memcmp(buff + i, "\xff\xff\xff", 3) == 0;
+            if (has_end) {
+                n = i+3;
+                memmove(msg, buff, n);
+
+                nnn -= n;
+                memmove(buff, buff+n, nnn);
+
+#if NEXTION_DEBUG
+                printf("msg(%d)", n);
+                for (int ii=0; ii<n; ii++) {
+                    printf(" %02x", msg[ii]);
+                }
+                printf("\r\n");
+#endif
+            }
+        }
+    }
+//    SCI_enableInterrupt(SCIB_BASE, SCI_INT_RXFF);
+//    Interrupt_enable(INT_SCIB_RX);
+//    EINT;
+
+//    return false;
 
     if (n > 3)
     {
@@ -446,7 +634,7 @@ void Nextion::set_rpm(Uint16 rpm, bool force)
         send(msg2);
     }
 
-    set_graph();
+//    set_graph();
 }
 
 void Nextion::set_graph() {
@@ -603,6 +791,7 @@ void Nextion::update_ind() {
 
 void Nextion::store_params() {
 #if 0
+    SCI_disableInterrupt(SCIB_BASE, SCI_INT_RXRDY_BRKDT);
     unsigned char cmd[16];
     sprintf((char*)cmd, "wept 0,%d\xff\xff\xff", 4*16);
     send(cmd);
@@ -613,19 +802,32 @@ void Nextion::store_params() {
     send((unsigned char *)feed_str_, 4*16);
     DELAY_US(100000);
     read((unsigned char*)buf, 4); // (finished) 0xFD 0xFF 0xFF 0xFF
+    SCI_enableInterrupt(SCIB_BASE, SCI_INT_RXRDY_BRKDT);
+    nnn = 0;
 #endif
 }
 
 void Nextion::restore_params() {
 #if 0
+//    SCI_disableInterrupt(SCIB_BASE, SCI_INT_RXRDY_BRKDT);
     unsigned char cmd[4*16+1] = { '\0' };
     sprintf((char*)cmd, "rept 0,%d\xff\xff\xff", 4*16);
+    printf("aaaa1 %d\r\n", nnn);
+    nnn = 0;
     send(cmd);
-//    DELAY_US(10000);
-    unsigned char buf[4];
+    DELAY_US(100000);
+    memset(feed_str_, '*', 4*16);
+    printf("aaaa2 %d\r\n", nnn);
+    if (nnn == 4*16) {
+        memmove(feed_str_, buff, 4*16);
+    }
+    nnn = 0;
+//    unsigned char buf[4];
 //    read((unsigned char*)buf, 4);
-    read((unsigned char*)feed_str_, 4*16);
-    read((unsigned char*)buf, 4);
+//    int a = read((unsigned char*)feed_str_, 4*16);
+//    int b = read((unsigned char*)buf, 4);
+//    printf("restore %d %d\r\n", a, b);
+//    SCI_enableInterrupt(SCIB_BASE, SCI_INT_RXRDY_BRKDT);
 #endif
 }
 
@@ -639,7 +841,7 @@ void Nextion::set_params() {
             break;
         }
     }
-    valid = false;
+//    valid = false;
 
     if (! valid) {
         strcpy(feed_str_[0], ".005"); // in/rev

@@ -52,6 +52,10 @@
 #include "F28x_Project.h"
 #include "launchxl_ex1_sci_io.h"
 
+#include "driverlib.h"
+#include "device.h"
+
+
 //
 // Defines
 //
@@ -110,10 +114,12 @@ int SCI_read(int dev_fd, char * buf, unsigned count)
     {
         return (0);
     }
+
+    return readCount;
     
-    while((readCount < count) && SciaRegs.SCIRXST.bit.RXRDY)
+    while((readCount < count) && SCI_isDataAvailableNonFIFO(SCIA_BASE))
     {
-        *bufPtr = SciaRegs.SCIRXBUF.all;
+        *bufPtr = SCI_readCharBlockingNonFIFO(SCIA_BASE);
         readCount++;
         bufPtr++;
     }
@@ -136,8 +142,10 @@ int SCI_write(int dev_fd, const char * buf, unsigned count)
     
     while(writeCount < count)
     {
-        while(!SciaRegs.SCICTL2.bit.TXRDY);
-        SciaRegs.SCITXBUF.all = *bufPtr;
+//        SCI_isTransmitterBusy
+//        DELAY_US(265);
+        SCI_writeCharBlockingNonFIFO(SCIA_BASE, (uint16_t)(*bufPtr));
+//        SCI_writeCharNonBlocking(SCIA_BASE, (uint16_t)(*bufPtr));
         writeCount++;
         bufPtr++;
     }
@@ -168,117 +176,3 @@ int SCI_rename(const char * old_name, const char * new_name)
 {
     return (0);    
 }
-
-
-
-
-
-
-// KVV
-//
-// SCI_open -
-//
-int SCIB_open(const char * path, unsigned flags, int llv_fd)
-{
-    if(deviceOpenB)
-    {
-        return (-1);
-    }
-    else
-    {
-        deviceOpenB = 1;
-        return (1);
-    }
-}
-
-//
-// SCI_close -
-//
-int SCIB_close(int dev_fd)
-{
-    if((dev_fd != 1) || (!deviceOpenB))
-    {
-        return (-1);
-    }
-    else
-    {
-        deviceOpenB = 0;
-        return (0);
-    }
-}
-
-//
-// SCI_read -
-//
-int SCIB_read(int dev_fd, char * buf, unsigned count)
-{
-    uint16_t readCount = 0;
-    uint16_t * bufPtr = (uint16_t *) buf;
-
-    if(count == 0)
-    {
-        return (0);
-    }
-
-    while((readCount < count) && ScibRegs.SCIRXST.bit.RXRDY)
-    {
-        *bufPtr = ScibRegs.SCIRXBUF.all;
-        readCount++;
-        bufPtr++;
-    }
-
-    return (readCount);
-}
-
-//
-// SCI_write -
-//
-int SCIB_write(int dev_fd, const char * buf, unsigned count)
-{
-    uint16_t writeCount = 0;
-    uint16_t * bufPtr = (uint16_t *) buf;
-
-    if(count == 0)
-    {
-        return (0);
-    }
-
-    while(writeCount < count)
-    {
-        while(!ScibRegs.SCICTL2.bit.TXRDY);
-        ScibRegs.SCITXBUF.all = *bufPtr;
-        writeCount++;
-        bufPtr++;
-    }
-
-    return (writeCount);
-}
-
-//
-// SCI_lseek -
-//
-off_t SCIB_lseek(int dev_fd, off_t offset, int origin)
-{
-    return (0);
-}
-
-//
-// SCI_unlink -
-//
-int SCIB_unlink(const char * path)
-{
-    return (0);
-}
-
-//
-// SCI_rename -
-//
-int SCIB_rename(const char * old_name, const char * new_name)
-{
-    return (0);
-}
-
-//
-// End of File
-//
-
