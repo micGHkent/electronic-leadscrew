@@ -40,7 +40,7 @@
 //================================================================================
 
 // For Imperial leadscrews: pitch in Threads Per Inch (TPI)
-#define LEADSCREW_TPI 8
+#define LEADSCREW_TPI 10
 
 // For metric leadscrews: pitch in millimeters (MM)
 //#define LEADSCREW_MM 2
